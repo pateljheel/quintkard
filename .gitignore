@@ -1,28 +1,105 @@
-# OS and editor
+# ------------------------------
+# OS / editor
+# ------------------------------
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 *~
 
+# ------------------------------
 # Logs
+# ------------------------------
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment and local overrides
+# ------------------------------
+# Environment / local overrides
+# ------------------------------
 .env
 .env.*
 !.env.example
 
+# ------------------------------
+# Java / Gradle / Spring Boot
+# ------------------------------
+.gradle/
+build/
+target/
+out/
+
+*.class
+*.war
+*.ear
+
+HELP.md
+
+# Keep Gradle wrapper
+!gradle/
+!gradle/wrapper/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
+
+# ------------------------------
+# Maven
+# ------------------------------
+.mvn/
+
+# ------------------------------
 # Node / frontend
+# ------------------------------
 node_modules/
 .npm/
 .pnpm-store/
 
-# Build caches
+# Frontend build/cache
 .cache/
 .tmp/
 tmp/
+coverage/
+
+# ------------------------------
+# IDEs
+# ------------------------------
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# ------------------------------
+# Test / reports
+# ------------------------------
+reports/
+
+# ------------------------------
+# JVM crash logs
+# ------------------------------
+hs_err_pid*
+replay_pid*
