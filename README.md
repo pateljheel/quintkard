@@ -1,0 +1,81 @@
+# Quintkard
+
+Quintkard is a local-first workflow assistant for turning inbound messages into actionable cards. It combines a Spring Boot backend, a Next.js UI, database-backed message processing, AI-driven orchestration, agent tools, and hybrid card search.
+
+## Modules
+
+- `quintkard-app`
+  Spring Boot backend with PostgreSQL, security, message queue processing, orchestration, card management, embeddings, and agent/tool execution.
+- `quintkard-ui`
+  Next.js frontend for cards, messages, agents, orchestrator settings, and account management.
+
+## Main capabilities
+
+- Ingest and queue messages for processing
+- Route messages through an orchestrator and agent loop
+- Create, update, search, and manage cards
+- Hybrid card search using full-text search plus embeddings
+- User-scoped agent tools for card workflows and utility tasks
+- Structured logging with MDC correlation fields
+
+## Local prerequisites
+
+- Java 21
+- Node.js
+- PostgreSQL with a `quintkard` database
+- Google Cloud ADC or equivalent Vertex AI auth for AI model access
+
+Default backend local DB settings are currently:
+
+- database: `quintkard`
+- username: `quintkard`
+- password: `quintkard`
+
+The backend also enables the PostgreSQL `vector` extension on connection startup.
+
+## Run locally
+
+### Backend
+
+```bash
+cd quintkard-app
+./gradlew bootRun
+```
+
+The API runs on `http://localhost:8080`.
+
+### Frontend
+
+```bash
+cd quintkard-ui
+npm install
+npm run dev
+```
+
+The UI runs on `http://localhost:3000`.
+
+## Test and coverage
+
+Backend tests:
+
+```bash
+cd quintkard-app
+./gradlew test
+```
+
+Generate a fresh coverage report:
+
+```bash
+cd quintkard-app
+./gradlew test jacocoTestReport --rerun-tasks
+```
+
+Coverage report:
+
+- `quintkard-app/build/reports/jacoco/test/html/index.html`
+
+## Notes
+
+- The backend is configured for Google GenAI chat and embeddings through Vertex AI.
+- Message processing is database-backed and enabled by default.
+- The UI talks to the backend on `http://localhost:8080`.
