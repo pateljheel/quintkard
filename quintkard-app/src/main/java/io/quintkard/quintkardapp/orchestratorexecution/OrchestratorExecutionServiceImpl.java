@@ -4,6 +4,7 @@ import io.quintkard.quintkardapp.agent.AgentConfig;
 import io.quintkard.quintkardapp.agentexecution.AgentExecutionResult;
 import io.quintkard.quintkardapp.aimodel.AiMessage;
 import io.quintkard.quintkardapp.aimodel.AiMessageRole;
+import io.quintkard.quintkardapp.aimodel.AiMemoryService;
 import io.quintkard.quintkardapp.aimodel.AiStructuredChatRequest;
 import io.quintkard.quintkardapp.aimodel.AiChatService;
 import io.quintkard.quintkardapp.logging.LogContext;
@@ -28,15 +29,18 @@ public class OrchestratorExecutionServiceImpl implements OrchestratorExecutionSe
     private static final Logger logger = LoggerFactory.getLogger(OrchestratorExecutionServiceImpl.class);
 
     private final AiChatService aiChatService;
+    private final AiMemoryService aiMemoryService;
     private final AgentDispatchService agentDispatchService;
     private final MessageProcessingContextFactory contextFactory;
 
     public OrchestratorExecutionServiceImpl(
             AiChatService aiChatService,
+            AiMemoryService aiMemoryService,
             AgentDispatchService agentDispatchService,
             MessageProcessingContextFactory contextFactory
     ) {
         this.aiChatService = aiChatService;
+        this.aiMemoryService = aiMemoryService;
         this.agentDispatchService = agentDispatchService;
         this.contextFactory = contextFactory;
     }
@@ -65,6 +69,8 @@ public class OrchestratorExecutionServiceImpl implements OrchestratorExecutionSe
             return new OrchestratorExecutionResult(filteringDecision, routingDecision, agentResults);
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to manage orchestration logging context", exception);
+        } finally {
+            aiMemoryService.clear(context.memoryScope());
         }
     }
 
