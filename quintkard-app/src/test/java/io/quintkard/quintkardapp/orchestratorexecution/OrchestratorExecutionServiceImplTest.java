@@ -14,6 +14,7 @@ import io.quintkard.quintkardapp.agentexecution.AgentExecutionResult;
 import io.quintkard.quintkardapp.agentexecution.AgentExecutionStatus;
 import io.quintkard.quintkardapp.aimodel.AiChatService;
 import io.quintkard.quintkardapp.aimodel.AiMemoryScope;
+import io.quintkard.quintkardapp.aimodel.AiMemoryService;
 import io.quintkard.quintkardapp.message.Message;
 import io.quintkard.quintkardapp.message.MessageStatus;
 import io.quintkard.quintkardapp.messagepipeline.MessageProcessingContext;
@@ -34,6 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class OrchestratorExecutionServiceImplTest {
 
     private AiChatService aiChatService;
+    private AiMemoryService aiMemoryService;
     private AgentDispatchService agentDispatchService;
     private MessageProcessingContextFactory contextFactory;
     private OrchestratorExecutionServiceImpl orchestratorExecutionService;
@@ -41,10 +43,11 @@ class OrchestratorExecutionServiceImplTest {
     @BeforeEach
     void setUp() {
         aiChatService = mock(AiChatService.class);
+        aiMemoryService = mock(AiMemoryService.class);
         agentDispatchService = mock(AgentDispatchService.class);
         contextFactory = mock(MessageProcessingContextFactory.class);
         orchestratorExecutionService =
-                new OrchestratorExecutionServiceImpl(aiChatService, agentDispatchService, contextFactory);
+                new OrchestratorExecutionServiceImpl(aiChatService, aiMemoryService, agentDispatchService, contextFactory);
     }
 
     @Test
@@ -60,6 +63,7 @@ class OrchestratorExecutionServiceImplTest {
         assertEquals("Message rejected by filtering step", result.routingDecision().reason());
         assertTrue(result.agentResults().isEmpty());
         verify(agentDispatchService, never()).dispatch(any(), any(), any(), any());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -89,6 +93,7 @@ class OrchestratorExecutionServiceImplTest {
         ArgumentCaptor<RoutingDecision> routingCaptor = ArgumentCaptor.forClass(RoutingDecision.class);
         verify(agentDispatchService).dispatch(any(), routingCaptor.capture(), any(), any());
         assertEquals(List.of(finance.getId(), ops.getId()), routingCaptor.getValue().agentIds());
+        verify(aiMemoryService).clear(context.memoryScope());
     }
 
     @Test
@@ -113,6 +118,7 @@ class OrchestratorExecutionServiceImplTest {
         assertTrue(result.filteringDecision().accepted());
         assertEquals("Filtering disabled", result.filteringDecision().reason());
         verify(aiChatService).chatForObject(any());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -137,6 +143,7 @@ class OrchestratorExecutionServiceImplTest {
         assertTrue(result.filteringDecision().accepted());
         assertEquals("Filtering disabled", result.filteringDecision().reason());
         verify(aiChatService).chatForObject(any());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -152,6 +159,7 @@ class OrchestratorExecutionServiceImplTest {
         assertEquals(List.of(), result.routingDecision().agentIds());
         assertEquals("No active agents configured", result.routingDecision().reason());
         verify(agentDispatchService).dispatch(any(), any(), any(), any());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -169,6 +177,7 @@ class OrchestratorExecutionServiceImplTest {
 
         assertEquals(List.of(), result.routingDecision().agentIds());
         assertEquals("No routing reason provided", result.routingDecision().reason());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -186,6 +195,7 @@ class OrchestratorExecutionServiceImplTest {
 
         assertEquals(List.of(finance.getId()), result.routingDecision().agentIds());
         assertEquals("No routing reason provided", result.routingDecision().reason());
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -204,6 +214,7 @@ class OrchestratorExecutionServiceImplTest {
         );
 
         assertEquals("Failed to manage orchestration logging context", exception.getMessage());
+        verify(aiMemoryService).clear(invalidContext.memoryScope());
     }
 
     @Test
@@ -232,6 +243,7 @@ class OrchestratorExecutionServiceImplTest {
         assertTrue(routingPrompt.contains("Name: Finance"));
         assertTrue(routingPrompt.contains("Description: Finance description"));
         assertTrue(routingPrompt.contains("Payload:\nPlease follow up on the invoice from last August."));
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     @Test
@@ -257,6 +269,7 @@ class OrchestratorExecutionServiceImplTest {
         String filteringPrompt = requests.get(0).messages().get(1).content();
         assertTrue(filteringPrompt.contains("Summary: \n"));
         assertTrue(filteringPrompt.contains("Payload:\n"));
+        verify(aiMemoryService).clear(context().memoryScope());
     }
 
     private MessageProcessingContext context() {
