@@ -41,7 +41,7 @@ Quintkard is a local-first workflow assistant for turning inbound messages into 
 - Java 21
 - Node.js
 - PostgreSQL with a `quintkard` database
-- Google Cloud ADC or equivalent Vertex AI auth for AI model access
+- Google Cloud auth for Gemini access
 
 Default backend local DB settings are currently:
 
@@ -50,6 +50,33 @@ Default backend local DB settings are currently:
 - password: `quintkard`
 
 The backend also enables the PostgreSQL `vector` extension on connection startup.
+
+## AI setup
+
+The backend is currently configured to use Gemini through Vertex AI.
+
+### Option 1: Vertex AI with Application Default Credentials
+
+Authenticate with Google Cloud locally:
+
+```bash
+gcloud auth application-default login
+```
+
+You should also make sure the configured Google Cloud project has Vertex AI access enabled.
+
+### Option 2: Gemini Developer API / AI Studio key
+
+The backend properties also include a commented-out AI Studio API key configuration.
+If you want to use that path instead of Vertex AI:
+
+1. Uncomment the `spring.ai.google.genai.api-key` properties in `quintkard-app/src/main/resources/application.properties`
+2. Disable the active Vertex AI properties
+3. Export an API key:
+
+```bash
+export GOOGLE_API_KEY=your_key_here
+```
 
 ## Run locally
 
