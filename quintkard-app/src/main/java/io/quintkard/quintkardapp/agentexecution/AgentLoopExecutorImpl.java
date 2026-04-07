@@ -149,8 +149,9 @@ public class AgentLoopExecutorImpl implements AgentLoopExecutor {
         List<Map<String, Object>> toolResponseParts = new ArrayList<>();
         for (AiToolCall toolCall : toolCalls) {
             Object result = executeToolCall(context, toolCall, allowedTools);
-            toolResults.add(new AiToolResult(toolCall.toolName(), result));
+            toolResults.add(new AiToolResult(toolCall.toolCallId(), toolCall.toolName(), result));
             toolResponseParts.add(Map.of(
+                    "toolCallId", toolCall.toolCallId() == null ? toolCall.toolName() : toolCall.toolCallId(),
                     "toolName", toolCall.toolName(),
                     "result", result
             ));

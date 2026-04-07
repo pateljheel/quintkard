@@ -83,7 +83,7 @@ class AgentLoopExecutorImplTest {
         when(aiChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "",
-                        List.of(new AiToolCall("get_current_time", Map.of("timezone", "UTC"))),
+                        List.of(new AiToolCall("call-1", "get_current_time", Map.of("timezone", "UTC"))),
                         false
                 ))
                 .thenReturn(new AiChatResponse("final answer", List.of(), true));
@@ -99,12 +99,14 @@ class AgentLoopExecutorImplTest {
         assertEquals(2, result.iterations());
         assertEquals(1, result.toolCalls());
         assertEquals(1, result.toolResults().size());
+        assertEquals("call-1", result.toolResults().getFirst().toolCallId());
 
         ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
         verify(aiChatService, org.mockito.Mockito.times(2)).chat(requestCaptor.capture());
         AiChatRequest secondRequest = requestCaptor.getAllValues().get(1);
         assertEquals(1, secondRequest.messages().size());
         assertEquals(AiMessageRole.TOOL, secondRequest.messages().getFirst().role());
+        assertTrue(secondRequest.messages().getFirst().content().contains("\"toolCallId\":\"call-1\""));
         assertTrue(secondRequest.messages().getFirst().content().contains("\"toolName\":\"get_current_time\""));
         assertTrue(secondRequest.messages().getFirst().content().contains("\"currentTime\":\"2026-04-05T12:00:00Z\""));
     }
@@ -118,7 +120,7 @@ class AgentLoopExecutorImplTest {
         when(aiChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "",
-                        List.of(new AiToolCall("create_card", Map.of("title", "Follow up"))),
+                        List.of(new AiToolCall("call-2", "create_card", Map.of("title", "Follow up"))),
                         false
                 ))
                 .thenReturn(new AiChatResponse("recovered", List.of(), true));
@@ -148,8 +150,8 @@ class AgentLoopExecutorImplTest {
                 .thenReturn(new AiChatResponse(
                         "needs tools",
                         List.of(
-                                new AiToolCall("get_current_time", Map.of()),
-                                new AiToolCall("get_current_date", Map.of())
+                                new AiToolCall("call-1", "get_current_time", Map.of()),
+                                new AiToolCall("call-2", "get_current_date", Map.of())
                         ),
                         false
                 ));
@@ -173,7 +175,7 @@ class AgentLoopExecutorImplTest {
         when(aiChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "still working",
-                        List.of(new AiToolCall("get_current_time", Map.of())),
+                        List.of(new AiToolCall("call-1", "get_current_time", Map.of())),
                         false
                 ));
 
@@ -211,7 +213,7 @@ class AgentLoopExecutorImplTest {
         when(aiChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "",
-                        List.of(new AiToolCall("not_allowed_tool", Map.of("x", 1))),
+                        List.of(new AiToolCall("call-1", "not_allowed_tool", Map.of("x", 1))),
                         false
                 ))
                 .thenReturn(new AiChatResponse("handled missing tool", List.of(), true));
@@ -293,7 +295,7 @@ class AgentLoopExecutorImplTest {
         when(localChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "",
-                        List.of(new AiToolCall("get_current_time", Map.of("timezone", "UTC"))),
+                        List.of(new AiToolCall("call-1", "get_current_time", Map.of("timezone", "UTC"))),
                         false
                 ))
                 .thenReturn(new AiChatResponse("done", List.of(), true));
@@ -330,7 +332,7 @@ class AgentLoopExecutorImplTest {
         when(localChatService.chat(any(AiChatRequest.class)))
                 .thenReturn(new AiChatResponse(
                         "",
-                        List.of(new AiToolCall("get_current_time", Map.of("timezone", "UTC"))),
+                        List.of(new AiToolCall("call-1", "get_current_time", Map.of("timezone", "UTC"))),
                         false
                 ));
         doAnswer(invocation -> {
