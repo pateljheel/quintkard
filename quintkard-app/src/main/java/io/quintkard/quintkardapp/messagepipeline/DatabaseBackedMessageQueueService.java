@@ -1,5 +1,6 @@
 package io.quintkard.quintkardapp.messagepipeline;
 
+import io.quintkard.quintkardapp.config.MessageQueueProperties;
 import io.quintkard.quintkardapp.logging.LogContext;
 import io.quintkard.quintkardapp.message.Message;
 import io.quintkard.quintkardapp.message.MessageRepository;
@@ -7,7 +8,6 @@ import io.quintkard.quintkardapp.message.MessageStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -40,9 +40,9 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
         MessageProcessor messageProcessor,
         PlatformTransactionManager transactionManager,
         @Qualifier("messageQueueTaskExecutor") ThreadPoolTaskExecutor taskExecutor,
-        @Value("${quintkard.message.queue.batch-size:10}") int batchSize
+        MessageQueueProperties messageQueueProperties
     ) {
-        this.batchSize = batchSize;
+        this.batchSize = messageQueueProperties.getBatchSize();
         this.messageProcessor = messageProcessor;
         this.messageRepository = messageRepository;
         this.taskExecutor = taskExecutor;
