@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.quintkard.quintkardapp.config.MessageQueueProperties;
 import io.quintkard.quintkardapp.message.Message;
 import io.quintkard.quintkardapp.message.MessageRepository;
 import io.quintkard.quintkardapp.message.MessageStatus;
@@ -48,7 +49,7 @@ class DatabaseBackedMessageQueueServiceTest {
                 messageProcessor,
                 transactionManager(),
                 taskExecutor,
-                10
+                messageQueueProperties()
         );
     }
 
@@ -178,6 +179,12 @@ class DatabaseBackedMessageQueueServiceTest {
         TransactionStatus transactionStatus = new SimpleTransactionStatus();
         when(transactionManager.getTransaction(any(TransactionDefinition.class))).thenReturn(transactionStatus);
         return transactionManager;
+    }
+
+    private MessageQueueProperties messageQueueProperties() {
+        MessageQueueProperties properties = new MessageQueueProperties();
+        properties.setBatchSize(10);
+        return properties;
     }
 
     private Message message() {
