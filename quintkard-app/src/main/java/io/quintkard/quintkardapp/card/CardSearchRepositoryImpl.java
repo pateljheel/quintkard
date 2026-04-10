@@ -54,6 +54,9 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
     public Slice<CardSummaryProjection> searchHybridSummariesByUserId(
             String userId,
             CardStatus status,
+            CardType cardType,
+            Instant updatedAfter,
+            Instant updatedBefore,
             String query,
             String embeddingModel,
             float[] queryEmbedding,
@@ -65,6 +68,9 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         int semanticProbeLimit = Math.max((pageable.getPageNumber() + 1) * pageSize * 20, MIN_SEMANTIC_PROBE_LIMIT);
         String queryVector = toVectorLiteral(queryEmbedding);
         String statusClause = status == null ? "" : " and c.status = ?\n";
+        String cardTypeClause = cardType == null ? "" : " and c.card_type = ?\n";
+        String updatedAfterClause = updatedAfter == null ? "" : " and c.updated_at >= ?\n";
+        String updatedBeforeClause = updatedBefore == null ? "" : " and c.updated_at <= ?\n";
         String sql = """
                 with semantic_chunk_matches as (
                     select
@@ -75,7 +81,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     join users u on u.id = c.user_fk
                     where u.user_id = ?
                       and ce.embedding_model = ?
-                """ + statusClause + """
+                """ + statusClause + cardTypeClause + updatedAfterClause + updatedBeforeClause + """
                     order by ce.embedding_vector <=> cast(? as vector) asc
                     limit ?
                 ),
@@ -108,7 +114,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     from cards c
                     join users u on u.id = c.user_fk
                     where u.user_id = ?
-                """ + statusClause + """
+                """ + statusClause + cardTypeClause + updatedAfterClause + updatedBeforeClause + """
                       and to_tsvector(
                             'english',
                             coalesce(c.title, '') || ' ' ||
@@ -165,6 +171,15 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         if (status != null) {
             parameters.add(status.name());
         }
+        if (cardType != null) {
+            parameters.add(cardType.name());
+        }
+        if (updatedAfter != null) {
+            parameters.add(Timestamp.from(updatedAfter));
+        }
+        if (updatedBefore != null) {
+            parameters.add(Timestamp.from(updatedBefore));
+        }
         parameters.add(queryVector);
         parameters.add(semanticProbeLimit);
         parameters.add(embeddingProperties.maxSemanticDistance());
@@ -172,6 +187,15 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         parameters.add(userId);
         if (status != null) {
             parameters.add(status.name());
+        }
+        if (cardType != null) {
+            parameters.add(cardType.name());
+        }
+        if (updatedAfter != null) {
+            parameters.add(Timestamp.from(updatedAfter));
+        }
+        if (updatedBefore != null) {
+            parameters.add(Timestamp.from(updatedBefore));
         }
         parameters.add(query);
         parameters.add(textProbeLimit);

@@ -1,5 +1,6 @@
 package io.quintkard.quintkardapp.message;
 
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,20 +34,35 @@ public class MessageServiceImpl implements MessageService {
             int page,
             int size,
             String query,
-            MessageStatus status
+            MessageStatus status,
+            String sourceService,
+            String messageType,
+            Instant ingestedAfter,
+            Instant ingestedBefore
     ) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), normalizePageSize(size));
+        String normalizedSourceService = trimToNull(sourceService);
+        String normalizedMessageType = trimToNull(messageType);
 
         if (query == null || query.isBlank()) {
-            if (status == null) {
-                return messageRepository.findSummariesByUserUserIdOrderByIngestedAtDesc(userId, pageable);
-            }
-            return messageRepository.findSummariesByUserUserIdAndStatusOrderByIngestedAtDesc(userId, status, pageable);
+            return messageRepository.findSummariesByFiltersOrderByIngestedAtDesc(
+                    userId,
+                    status,
+                    normalizedSourceService,
+                    normalizedMessageType,
+                    ingestedAfter,
+                    ingestedBefore,
+                    pageable
+            );
         }
 
         return messageRepository.searchSummariesByUserId(
                 userId,
                 status == null ? null : status.name(),
+                normalizedSourceService,
+                normalizedMessageType,
+                ingestedAfter,
+                ingestedBefore,
                 query.trim(),
                 pageable
         );
@@ -81,5 +97,13 @@ public class MessageServiceImpl implements MessageService {
             case FAILED -> message.markFailed();
             case SUCCESS -> message.markSuccess();
         }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -17,6 +17,7 @@ import io.quintkard.quintkardapp.embedding.EmbeddingProperties;
 import io.quintkard.quintkardapp.embedding.EmbeddingService;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -91,13 +92,36 @@ class CardServiceImplTest {
     void listCardsWithoutQueryUsesRepositoryListPath() {
         @SuppressWarnings("unchecked")
         Slice<CardSummaryProjection> expectedSlice = new SliceImpl<>(List.of(mock(CardSummaryProjection.class)));
-        when(cardRepository.findSummariesByUserUserIdOrderByUpdatedAtDesc(eq("admin"), any(PageRequest.class)))
+        when(cardRepository.findSummariesByFiltersOrderByUpdatedAtDesc(
+                eq("admin"),
+                eq(null),
+                eq(CardType.FOLLOW_UP),
+                eq(Instant.parse("2026-04-05T00:00:00Z")),
+                eq(Instant.parse("2026-04-06T00:00:00Z")),
+                any(PageRequest.class)
+        ))
                 .thenReturn(expectedSlice);
 
-        Slice<CardSummaryProjection> result = cardService.listCards("admin", 0, 25, "   ", null);
+        Slice<CardSummaryProjection> result = cardService.listCards(
+                "admin",
+                0,
+                25,
+                "   ",
+                null,
+                CardType.FOLLOW_UP,
+                Instant.parse("2026-04-05T00:00:00Z"),
+                Instant.parse("2026-04-06T00:00:00Z")
+        );
 
         assertSame(expectedSlice, result);
-        verify(cardRepository).findSummariesByUserUserIdOrderByUpdatedAtDesc(eq("admin"), eq(PageRequest.of(0, 25)));
+        verify(cardRepository).findSummariesByFiltersOrderByUpdatedAtDesc(
+                eq("admin"),
+                eq(null),
+                eq(CardType.FOLLOW_UP),
+                eq(Instant.parse("2026-04-05T00:00:00Z")),
+                eq(Instant.parse("2026-04-06T00:00:00Z")),
+                eq(PageRequest.of(0, 25))
+        );
         verifyNoInteractions(embeddingService);
     }
 
@@ -110,6 +134,9 @@ class CardServiceImplTest {
         when(cardRepository.searchHybridSummariesByUserId(
                 eq("admin"),
                 eq(CardStatus.OPEN),
+                eq(CardType.FOLLOW_UP),
+                eq(Instant.parse("2026-04-05T00:00:00Z")),
+                eq(Instant.parse("2026-04-06T00:00:00Z")),
                 eq("invoice follow up"),
                 eq("gemini-embedding-001"),
                 eq(embedding),
@@ -117,13 +144,25 @@ class CardServiceImplTest {
         )).thenReturn(expectedSlice);
 
         Slice<CardSummaryProjection> result =
-                cardService.listCards("admin", -2, 500, "  invoice follow up  ", CardStatus.OPEN);
+                cardService.listCards(
+                        "admin",
+                        -2,
+                        500,
+                        "  invoice follow up  ",
+                        CardStatus.OPEN,
+                        CardType.FOLLOW_UP,
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                );
 
         assertSame(expectedSlice, result);
         verify(embeddingService).embed("invoice follow up");
         verify(cardRepository).searchHybridSummariesByUserId(
                 eq("admin"),
                 eq(CardStatus.OPEN),
+                eq(CardType.FOLLOW_UP),
+                eq(Instant.parse("2026-04-05T00:00:00Z")),
+                eq(Instant.parse("2026-04-06T00:00:00Z")),
                 eq("invoice follow up"),
                 eq("gemini-embedding-001"),
                 eq(embedding),
@@ -327,15 +366,25 @@ class CardServiceImplTest {
     void listCardsWithoutQueryAndStatusUsesStatusRepositoryPath() {
         @SuppressWarnings("unchecked")
         Slice<CardSummaryProjection> expectedSlice = new SliceImpl<>(List.of(mock(CardSummaryProjection.class)));
-        when(cardRepository.findSummariesByUserUserIdAndStatusOrderByUpdatedAtDesc(eq("admin"), eq(CardStatus.DONE), any(PageRequest.class)))
-                .thenReturn(expectedSlice);
-
-        Slice<CardSummaryProjection> result = cardService.listCards("admin", 0, -1, null, CardStatus.DONE);
-
-        assertSame(expectedSlice, result);
-        verify(cardRepository).findSummariesByUserUserIdAndStatusOrderByUpdatedAtDesc(
+        when(cardRepository.findSummariesByFiltersOrderByUpdatedAtDesc(
                 eq("admin"),
                 eq(CardStatus.DONE),
+                eq(null),
+                eq(null),
+                eq(null),
+                any(PageRequest.class)
+        ))
+                .thenReturn(expectedSlice);
+
+        Slice<CardSummaryProjection> result = cardService.listCards("admin", 0, -1, null, CardStatus.DONE, null, null, null);
+
+        assertSame(expectedSlice, result);
+        verify(cardRepository).findSummariesByFiltersOrderByUpdatedAtDesc(
+                eq("admin"),
+                eq(CardStatus.DONE),
+                eq(null),
+                eq(null),
+                eq(null),
                 eq(PageRequest.of(0, 20))
         );
         verifyNoInteractions(embeddingService);

@@ -105,6 +105,9 @@ class CardSearchRepositoryImplIntegrationTest {
         Slice<CardSummaryProjection> result = repository.searchHybridSummariesByUserId(
                 "admin",
                 CardStatus.OPEN,
+                null,
+                null,
+                null,
                 "invoice",
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
@@ -125,6 +128,9 @@ class CardSearchRepositoryImplIntegrationTest {
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummariesByUserId(
                 "admin",
+                null,
+                null,
+                null,
                 null,
                 "invoice",
                 "gemini-embedding-001",
@@ -149,6 +155,9 @@ class CardSearchRepositoryImplIntegrationTest {
         Slice<CardSummaryProjection> result = repository.searchHybridSummariesByUserId(
                 "admin",
                 null,
+                null,
+                null,
+                null,
                 "invoice",
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
@@ -157,6 +166,56 @@ class CardSearchRepositoryImplIntegrationTest {
 
         assertEquals(1, result.getContent().size());
         assertEquals(textCard, result.getContent().getFirst().getId());
+    }
+
+    @Test
+    void searchHybridSummariesByUserIdAppliesCardTypeAndUpdatedAfterFilters() {
+        insertUser(1L, "admin");
+        UUID matchingCard = insertCard(
+                1L,
+                "Invoice follow up",
+                "Need action",
+                "Vendor correction pending",
+                CardType.FOLLOW_UP,
+                CardStatus.OPEN,
+                Instant.parse("2026-04-05T02:00:00Z")
+        );
+        insertEmbedding(matchingCard, "[1,0,0]");
+        UUID wrongTypeCard = insertCard(
+                1L,
+                "Invoice note",
+                "Need action",
+                "Vendor correction pending",
+                CardType.NOTE,
+                CardStatus.OPEN,
+                Instant.parse("2026-04-05T02:05:00Z")
+        );
+        insertEmbedding(wrongTypeCard, "[1,0,0]");
+        UUID tooOldCard = insertCard(
+                1L,
+                "Invoice archive",
+                "Need action",
+                "Vendor correction pending",
+                CardType.FOLLOW_UP,
+                CardStatus.OPEN,
+                Instant.parse("2026-04-05T00:05:00Z")
+        );
+        insertEmbedding(tooOldCard, "[1,0,0]");
+
+        Slice<CardSummaryProjection> result = repository.searchHybridSummariesByUserId(
+                "admin",
+                CardStatus.OPEN,
+                CardType.FOLLOW_UP,
+                Instant.parse("2026-04-05T01:00:00Z"),
+                Instant.parse("2026-04-05T03:00:00Z"),
+                "invoice",
+                "gemini-embedding-001",
+                new float[] {1f, 0f, 0f},
+                PageRequest.of(0, 10)
+        );
+
+        assertEquals(1, result.getContent().size());
+        assertEquals(matchingCard, result.getContent().getFirst().getId());
     }
 
     private void insertUser(long id, String userId) {
@@ -178,6 +237,10 @@ class CardSearchRepositoryImplIntegrationTest {
     }
 
     private UUID insertCard(long userFk, String title, String summary, String content, CardStatus status, Instant updatedAt) {
+        return insertCard(userFk, title, summary, content, CardType.FOLLOW_UP, status, updatedAt);
+    }
+
+    private UUID insertCard(long userFk, String title, String summary, String content, CardType cardType, CardStatus status, Instant updatedAt) {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update(
                 """
@@ -189,7 +252,7 @@ class CardSearchRepositoryImplIntegrationTest {
                 title,
                 summary,
                 content,
-                CardType.FOLLOW_UP.name(),
+                cardType.name(),
                 status.name(),
                 CardPriority.MEDIUM.name(),
                 null,

@@ -49,6 +49,19 @@ function createEmptyForm(): CardRequest {
   };
 }
 
+function toInstantParam(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "";
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
 export default function CardsPage() {
   const [cards, setCards] = useState<CardListItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardResponse | null>(null);
@@ -59,6 +72,9 @@ export default function CardsPage() {
   const [mutating, setMutating] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [cardTypeFilter, setCardTypeFilter] = useState("");
+  const [updatedAfterFilter, setUpdatedAfterFilter] = useState("");
+  const [updatedBeforeFilter, setUpdatedBeforeFilter] = useState("");
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState("");
@@ -79,6 +95,20 @@ export default function CardsPage() {
 
     if (statusFilter) {
       params.set("status", statusFilter);
+    }
+
+    if (cardTypeFilter) {
+      params.set("cardType", cardTypeFilter);
+    }
+
+    const updatedAfterParam = toInstantParam(updatedAfterFilter);
+    if (updatedAfterParam) {
+      params.set("updatedAfter", updatedAfterParam);
+    }
+
+    const updatedBeforeParam = toInstantParam(updatedBeforeFilter);
+    if (updatedBeforeParam) {
+      params.set("updatedBefore", updatedBeforeParam);
     }
 
     try {
@@ -316,6 +346,40 @@ export default function CardsPage() {
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="field">
+                  <span>Card type</span>
+                  <select
+                    className="select"
+                    value={cardTypeFilter}
+                    onChange={(event) => setCardTypeFilter(event.target.value)}
+                  >
+                    <option value="">All</option>
+                    {CARD_TYPES.map((cardType) => (
+                      <option key={cardType} value={cardType}>
+                        {cardType}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>Updated after</span>
+                  <input
+                    type="datetime-local"
+                    value={updatedAfterFilter}
+                    onChange={(event) => setUpdatedAfterFilter(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Updated before</span>
+                  <input
+                    type="datetime-local"
+                    value={updatedBeforeFilter}
+                    onChange={(event) => setUpdatedBeforeFilter(event.target.value)}
+                  />
                 </label>
               </div>
 

@@ -1,5 +1,6 @@
 package io.quintkard.quintkardapp.message;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,33 +45,20 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
         from Message m
         join m.user u
         where u.userId = :userId
+          and (:status is null or m.status = :status)
+          and (:sourceService is null or m.sourceService = :sourceService)
+          and (:messageType is null or m.messageType = :messageType)
+          and m.ingestedAt >= coalesce(:ingestedAfter, m.ingestedAt)
+          and m.ingestedAt <= coalesce(:ingestedBefore, m.ingestedAt)
         order by m.ingestedAt desc
         """)
-    Slice<MessageSummaryProjection> findSummariesByUserUserIdOrderByIngestedAtDesc(
-            @Param("userId") String userId,
-            Pageable pageable
-    );
-
-    @Query("""
-        select
-            m.id as id,
-            u.userId as userId,
-            m.sourceService as sourceService,
-            m.externalMessageId as externalMessageId,
-            m.messageType as messageType,
-            m.status as status,
-            m.summary as summary,
-            m.ingestedAt as ingestedAt,
-            m.sourceCreatedAt as sourceCreatedAt
-        from Message m
-        join m.user u
-        where u.userId = :userId
-          and m.status = :status
-        order by m.ingestedAt desc
-        """)
-    Slice<MessageSummaryProjection> findSummariesByUserUserIdAndStatusOrderByIngestedAtDesc(
+    Slice<MessageSummaryProjection> findSummariesByFiltersOrderByIngestedAtDesc(
             @Param("userId") String userId,
             @Param("status") MessageStatus status,
+            @Param("sourceService") String sourceService,
+            @Param("messageType") String messageType,
+            @Param("ingestedAfter") Instant ingestedAfter,
+            @Param("ingestedBefore") Instant ingestedBefore,
             Pageable pageable
     );
 
@@ -90,6 +78,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             join users u on u.id = m.user_fk
             where u.user_id = :userId
               and (:status is null or m.status = :status)
+              and (:sourceService is null or m.source_service = :sourceService)
+              and (:messageType is null or m.message_type = :messageType)
+              and m.ingested_at >= coalesce(:ingestedAfter, m.ingested_at)
+              and m.ingested_at <= coalesce(:ingestedBefore, m.ingested_at)
               and to_tsvector(
                     'english',
                     concat_ws(
@@ -121,6 +113,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     Slice<MessageSummaryProjection> searchSummariesByUserId(
             @Param("userId") String userId,
             @Param("status") String status,
+            @Param("sourceService") String sourceService,
+            @Param("messageType") String messageType,
+            @Param("ingestedAfter") Instant ingestedAfter,
+            @Param("ingestedBefore") Instant ingestedBefore,
             @Param("query") String query,
             Pageable pageable
     );

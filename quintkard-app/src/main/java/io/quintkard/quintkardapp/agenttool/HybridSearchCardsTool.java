@@ -41,7 +41,10 @@ public class HybridSearchCardsTool extends AbstractCardAiTool {
                 0,
                 normalizeLimit(arguments.limit()),
                 arguments.query(),
-                parseCardStatus(arguments.status(), false)
+                parseCardStatus(arguments.status(), false),
+                null,
+                null,
+                null
         );
         return CardSliceResponse.from(cards);
     }

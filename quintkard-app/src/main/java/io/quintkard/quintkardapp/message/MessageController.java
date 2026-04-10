@@ -1,6 +1,7 @@
 package io.quintkard.quintkardapp.message;
 
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
@@ -32,14 +33,22 @@ public class MessageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) MessageStatus status
+            @RequestParam(required = false) MessageStatus status,
+            @RequestParam(required = false) String sourceService,
+            @RequestParam(required = false) String messageType,
+            @RequestParam(required = false) Instant ingestedAfter,
+            @RequestParam(required = false) Instant ingestedBefore
     ) {
         Slice<MessageSummaryProjection> messages = messageService.listMessages(
                 authentication.getName(),
                 page,
                 size,
                 query,
-                status
+                status,
+                sourceService,
+                messageType,
+                ingestedAfter,
+                ingestedBefore
         );
 
         return MessageSliceResponse.from(messages);

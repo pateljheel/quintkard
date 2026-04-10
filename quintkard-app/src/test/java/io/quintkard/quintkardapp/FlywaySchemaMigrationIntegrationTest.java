@@ -43,6 +43,7 @@ class FlywaySchemaMigrationIntegrationTest {
     @Test
     void migrateCreatesSchemaAndIndexes() {
         assertEquals(1, count("select count(*) from flyway_schema_history where version = '1' and success = true"));
+        assertEquals(1, count("select count(*) from flyway_schema_history where version = '2' and success = true"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'users'"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'cards'"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'card_embeddings'"));
@@ -51,8 +52,11 @@ class FlywaySchemaMigrationIntegrationTest {
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'orchestrator_configs'"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'orchestration_active_agents'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_cards_search'"));
+        assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_cards_user_card_type_updated_at'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_search'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_status_ingested_at'"));
+        assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_user_source_service_ingested_at'"));
+        assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_user_message_type_ingested_at'"));
 
         String dataType = jdbcTemplate.queryForObject(
                 """
