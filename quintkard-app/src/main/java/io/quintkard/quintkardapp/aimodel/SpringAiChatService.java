@@ -1,14 +1,8 @@
 package io.quintkard.quintkardapp.aimodel;
 
-import io.quintkard.quintkardapp.agenttool.AiTool;
-import io.quintkard.quintkardapp.agenttool.AiToolExecutionRequest;
-import io.quintkard.quintkardapp.agenttool.AiToolScopeResolver;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -17,11 +11,9 @@ import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
-import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -29,19 +21,19 @@ import tools.jackson.databind.ObjectMapper;
 public class SpringAiChatService implements AiChatService {
 
     private final ChatMemory chatMemory;
-    private final ChatModel chatModel;
-    private final AiToolScopeResolver toolScopeResolver;
+    private final AiChatModelRegistry chatModelRegistry;
+    private final AiChatOptionsFactory chatOptionsFactory;
     private final ObjectMapper objectMapper;
 
     public SpringAiChatService(
             ChatMemory chatMemory,
-            ChatModel chatModel,
-            AiToolScopeResolver toolScopeResolver,
+            AiChatModelRegistry chatModelRegistry,
+            AiChatOptionsFactory chatOptionsFactory,
             ObjectMapper objectMapper
     ) {
         this.chatMemory = chatMemory;
-        this.chatModel = chatModel;
-        this.toolScopeResolver = toolScopeResolver;
+        this.chatModelRegistry = chatModelRegistry;
+        this.chatOptionsFactory = chatOptionsFactory;
         this.objectMapper = objectMapper;
     }
 
@@ -58,6 +50,7 @@ public class SpringAiChatService implements AiChatService {
                 null
         );
 
+        ChatModel chatModel = chatModelRegistry.get(request.model());
         ChatResponse response = chatModel.call(prompt);
         AssistantMessage assistantMessage = response.getResult().getOutput();
         persistAssistantMessage(request.memoryScope(), assistantMessage);
@@ -88,6 +81,7 @@ public class SpringAiChatService implements AiChatService {
                 "application/json"
         );
 
+        ChatModel chatModel = chatModelRegistry.get(request.model());
         ChatResponse response = chatModel.call(prompt);
         AssistantMessage assistantMessage = response.getResult().getOutput();
         persistAssistantMessage(request.memoryScope(), assistantMessage);
@@ -141,62 +135,18 @@ public class SpringAiChatService implements AiChatService {
             }
         }
 
-        return new Prompt(
-                promptMessages,
-                buildOptions(userId, model, temperature, toolScope, responseSchema, responseMimeType)
+        AiProvider provider = chatModelRegistry.providerFor(model);
+        ChatOptions options = chatOptionsFactory.build(
+                provider,
+                userId,
+                model,
+                temperature,
+                toolScope,
+                responseSchema,
+                responseMimeType
         );
-    }
 
-    private GoogleGenAiChatOptions buildOptions(
-            String userId,
-            String model,
-            double temperature,
-            AiToolScope toolScope,
-            String responseSchema,
-            String responseMimeType
-    ) {
-        GoogleGenAiChatOptions.Builder builder = GoogleGenAiChatOptions.builder()
-                .model(model)
-                .temperature(temperature)
-                .internalToolExecutionEnabled(false)
-                .labels(Map.of("userId", userId));
-
-        if (responseSchema != null) {
-            builder.responseSchema(responseSchema);
-        }
-
-        if (responseMimeType != null) {
-            builder.responseMimeType(responseMimeType);
-        }
-
-        if (toolScope != null && toolScope.allowedToolNames() != null && !toolScope.allowedToolNames().isEmpty()) {
-            List<AiTool> tools = toolScopeResolver.resolveTools(userId, toolScope.allowedToolNames());
-            Set<String> allowedToolNames = new LinkedHashSet<>();
-            List<ToolCallback> toolCallbacks = new ArrayList<>();
-            Map<String, Object> toolContext = new LinkedHashMap<>();
-
-            for (AiTool tool : tools) {
-                allowedToolNames.add(tool.name());
-                toolCallbacks.add(FunctionToolCallback
-                        .builder(tool.name(), (Map<String, Object> arguments) -> tool.execute(
-                                new AiToolExecutionRequest(
-                                        userId,
-                                        null,
-                                        arguments
-                                )
-                        ))
-                        .description(tool.description())
-                        .inputType(tool.inputType())
-                        .build());
-            }
-
-            toolContext.put("userId", userId);
-            builder.toolNames(allowedToolNames);
-            builder.toolCallbacks(toolCallbacks);
-            builder.toolContext(toolContext);
-        }
-
-        return builder.build();
+        return new Prompt(promptMessages, options);
     }
 
     private Message toSpringMessage(AiMessage message) {
@@ -210,6 +160,7 @@ public class SpringAiChatService implements AiChatService {
 
     private AiToolCall toToolCall(AssistantMessage.ToolCall toolCall) {
         return new AiToolCall(
+                toolCall.id(),
                 toolCall.name(),
                 parseArguments(toolCall.arguments())
         );
@@ -237,9 +188,10 @@ public class SpringAiChatService implements AiChatService {
             List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
             for (Map<String, Object> item : payload) {
                 String toolName = String.valueOf(item.getOrDefault("toolName", "tool"));
+                String toolCallId = String.valueOf(item.getOrDefault("toolCallId", toolName));
                 Object result = item.get("result");
                 String serializedResult = objectMapper.writeValueAsString(result);
-                responses.add(new ToolResponseMessage.ToolResponse(toolName, toolName, serializedResult));
+                responses.add(new ToolResponseMessage.ToolResponse(toolCallId, toolName, serializedResult));
             }
             return ToolResponseMessage.builder()
                     .responses(responses)
@@ -248,10 +200,11 @@ public class SpringAiChatService implements AiChatService {
             try {
                 Map<String, Object> payload = objectMapper.readValue(content, Map.class);
                 String toolName = String.valueOf(payload.getOrDefault("toolName", "tool"));
+                String toolCallId = String.valueOf(payload.getOrDefault("toolCallId", toolName));
                 Object result = payload.get("result");
                 String serializedResult = objectMapper.writeValueAsString(result);
                 return ToolResponseMessage.builder()
-                        .responses(List.of(new ToolResponseMessage.ToolResponse(toolName, toolName, serializedResult)))
+                        .responses(List.of(new ToolResponseMessage.ToolResponse(toolCallId, toolName, serializedResult)))
                         .build();
             } catch (Exception ignored) {
                 return ToolResponseMessage.builder()

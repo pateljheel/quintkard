@@ -55,6 +55,12 @@ The backend also enables the PostgreSQL `vector` extension on connection startup
 
 The backend is currently configured to use Gemini through Vertex AI.
 
+Suggested configuration by usage:
+
+- Use `Gemini on Vertex AI` if you want to run against a Google Cloud project, use GCP credits, or keep both chat and embeddings on the same Google-managed setup.
+- Use `Gemini Developer API / AI Studio key` if you want the simplest local API-key setup without Google Cloud ADC.
+- Use `OpenAI` if you want to run `gpt-*` chat models. In the current app, chat can be multi-provider, while embeddings are still configured separately and should stay pinned to one provider.
+
 ### Option 1: Vertex AI with Application Default Credentials
 
 Authenticate with Google Cloud locally:
@@ -77,6 +83,21 @@ If you want to use that path instead of Vertex AI:
 ```bash
 export GOOGLE_API_KEY=your_key_here
 ```
+
+### Option 3: OpenAI API key
+
+The backend also supports OpenAI chat models alongside Gemini.
+
+1. Export an API key:
+
+```bash
+export OPENAI_API_KEY=your_key_here
+```
+
+2. Make sure the OpenAI-related model entries remain present in `quintkard-app/src/main/resources/application.properties`
+3. Configure agents or orchestrator steps to use a supported `gpt-*` model
+
+OpenAI is currently used for chat only. Embeddings should remain pinned to a single configured provider.
 
 ## Run locally
 

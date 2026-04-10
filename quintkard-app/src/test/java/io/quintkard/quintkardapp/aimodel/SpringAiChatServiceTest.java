@@ -3,22 +3,16 @@ package io.quintkard.quintkardapp.aimodel;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.quintkard.quintkardapp.agenttool.AiTool;
-import io.quintkard.quintkardapp.agenttool.AiToolExecutionRequest;
-import io.quintkard.quintkardapp.agenttool.AiToolScopeResolver;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -33,15 +27,17 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
 import tools.jackson.databind.ObjectMapper;
 
 class SpringAiChatServiceTest {
 
     private ChatMemory chatMemory;
     private ChatModel chatModel;
-    private AiToolScopeResolver toolScopeResolver;
+    private AiChatModelRegistry chatModelRegistry;
+    private AiChatOptionsFactory chatOptionsFactory;
+    private ChatOptions chatOptions;
     private SpringAiChatService service;
 
     @BeforeEach
@@ -51,8 +47,44 @@ class SpringAiChatServiceTest {
                 .maxMessages(100)
                 .build();
         chatModel = mock(ChatModel.class);
-        toolScopeResolver = mock(AiToolScopeResolver.class);
-        service = new SpringAiChatService(chatMemory, chatModel, toolScopeResolver, new ObjectMapper());
+        chatModelRegistry = mock(AiChatModelRegistry.class);
+        chatOptionsFactory = mock(AiChatOptionsFactory.class);
+        chatOptions = mock(ChatOptions.class);
+        when(chatModelRegistry.get("gemini-2.5-flash")).thenReturn(chatModel);
+        when(chatModelRegistry.providerFor("gemini-2.5-flash")).thenReturn(AiProvider.GOOGLE_GENAI);
+        when(chatOptionsFactory.build(any(), any(), any(), any(Double.class), any(), any(), any()))
+                .thenReturn(chatOptions);
+        service = new SpringAiChatService(chatMemory, chatModelRegistry, chatOptionsFactory, new ObjectMapper());
+    }
+
+    @Test
+    void chatUsesOpenAiModelWhenCatalogResolvesOpenAiProvider() {
+        ChatModel openAiChatModel = mock(ChatModel.class);
+        when(chatModelRegistry.get("gpt-5.4-mini")).thenReturn(openAiChatModel);
+        when(chatModelRegistry.providerFor("gpt-5.4-mini")).thenReturn(AiProvider.OPENAI);
+        when(openAiChatModel.call(any(Prompt.class)))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("openai-done")))));
+
+        AiChatResponse response = service.chat(new AiChatRequest(
+                "admin",
+                "gpt-5.4-mini",
+                0.2,
+                List.of(new AiMessage(AiMessageRole.USER, "hello")),
+                null,
+                null
+        ));
+
+        assertEquals("openai-done", response.text());
+        verify(openAiChatModel).call(any(Prompt.class));
+        verify(chatOptionsFactory).build(
+                AiProvider.OPENAI,
+                "admin",
+                "gpt-5.4-mini",
+                0.2,
+                null,
+                null,
+                null
+        );
     }
 
     @Test
@@ -85,6 +117,7 @@ class SpringAiChatServiceTest {
         assertEquals("previous user message", prompt.getInstructions().get(0).getText());
         assertEquals("system prompt", prompt.getInstructions().get(1).getText());
         assertEquals("new user message", prompt.getInstructions().get(2).getText());
+        assertEquals(chatOptions, prompt.getOptions());
 
         List<Message> memoryMessages = chatMemory.get(memoryScope.conversationId());
         assertEquals(3, memoryMessages.size());
@@ -98,12 +131,7 @@ class SpringAiChatServiceTest {
     }
 
     @Test
-    void chatExposesToolCallsAndBuildsToolOptions() {
-        AiTool tool = mock(AiTool.class);
-        when(tool.name()).thenReturn("get_current_time");
-        when(tool.description()).thenReturn("Gets current time");
-        doReturn(Map.class).when(tool).inputType();
-        when(toolScopeResolver.resolveTools("admin", Set.of("get_current_time"))).thenReturn(List.of(tool));
+    void chatExposesToolCalls() {
         AssistantMessage assistantMessage = AssistantMessage.builder()
                 .content("")
                 .toolCalls(List.of(new AssistantMessage.ToolCall("1", "function", "get_current_time", "{\"timeZone\":\"UTC\"}")))
@@ -117,25 +145,24 @@ class SpringAiChatServiceTest {
                 0.3,
                 List.of(new AiMessage(AiMessageRole.USER, "what time is it?")),
                 null,
-                new AiToolScope(Set.of("get_current_time"))
+                new AiToolScope(java.util.Set.of("get_current_time"))
         ));
 
         assertFalse(response.finalResponse());
         assertEquals(1, response.toolCalls().size());
+        assertEquals("1", response.toolCalls().getFirst().toolCallId());
         assertEquals("get_current_time", response.toolCalls().getFirst().toolName());
         assertEquals("UTC", response.toolCalls().getFirst().arguments().get("timeZone"));
 
-        ArgumentCaptor<Prompt> promptCaptor = ArgumentCaptor.forClass(Prompt.class);
-        verify(chatModel).call(promptCaptor.capture());
-        GoogleGenAiChatOptions options = (GoogleGenAiChatOptions) promptCaptor.getValue().getOptions();
-        assertEquals("gemini-2.5-flash", options.getModel());
-        assertEquals(0.3, options.getTemperature());
-        assertEquals(Set.of("get_current_time"), options.getToolNames());
-        assertEquals(false, options.getInternalToolExecutionEnabled());
-        assertEquals("admin", options.getLabels().get("userId"));
-        assertEquals("admin", options.getToolContext().get("userId"));
-        assertEquals(1, options.getToolCallbacks().size());
-        assertEquals("get_current_time", options.getToolCallbacks().getFirst().getToolDefinition().name());
+        verify(chatOptionsFactory).build(
+                AiProvider.GOOGLE_GENAI,
+                "admin",
+                "gemini-2.5-flash",
+                0.3,
+                new AiToolScope(java.util.Set.of("get_current_time")),
+                null,
+                null
+        );
     }
 
     @Test
@@ -190,9 +217,15 @@ class SpringAiChatServiceTest {
         assertInstanceOf(SystemMessage.class, prompt.getInstructions().getFirst());
         assertTrue(prompt.getInstructions().getFirst().getText().startsWith("Route carefully"));
         assertTrue(prompt.getInstructions().getFirst().getText().contains("JSON Schema"));
-        GoogleGenAiChatOptions options = (GoogleGenAiChatOptions) prompt.getOptions();
-        assertNotNull(options.getResponseSchema());
-        assertEquals("application/json", options.getResponseMimeType());
+        verify(chatOptionsFactory).build(
+                eq(AiProvider.GOOGLE_GENAI),
+                eq("admin"),
+                eq("gemini-2.5-flash"),
+                eq(0.1),
+                eq(null),
+                anyString(),
+                eq("application/json")
+        );
     }
 
     @Test
@@ -243,6 +276,7 @@ class SpringAiChatServiceTest {
         ToolResponseMessage responseMessage = (ToolResponseMessage) toolMessage;
         assertEquals(2, responseMessage.getResponses().size());
         assertEquals("tool_a", responseMessage.getResponses().get(0).name());
+        assertEquals("tool_a", responseMessage.getResponses().get(0).id());
         assertEquals("{\"ok\":true}", responseMessage.getResponses().get(0).responseData());
         assertEquals("\"text\"", responseMessage.getResponses().get(1).responseData());
     }
@@ -256,7 +290,7 @@ class SpringAiChatServiceTest {
                 "admin",
                 "gemini-2.5-flash",
                 0.2,
-                List.of(new AiMessage(AiMessageRole.TOOL, "{\"toolName\":\"tool_a\",\"result\":{\"ok\":true}}")),
+                List.of(new AiMessage(AiMessageRole.TOOL, "{\"toolCallId\":\"call-1\",\"toolName\":\"tool_a\",\"result\":{\"ok\":true}}")),
                 null,
                 null
         ));
@@ -266,6 +300,7 @@ class SpringAiChatServiceTest {
         ToolResponseMessage mapResponse = (ToolResponseMessage) promptCaptor.getValue().getInstructions().getFirst();
         assertEquals(1, mapResponse.getResponses().size());
         assertEquals("tool_a", mapResponse.getResponses().getFirst().name());
+        assertEquals("call-1", mapResponse.getResponses().getFirst().id());
 
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("done")))));
@@ -285,34 +320,6 @@ class SpringAiChatServiceTest {
                 (ToolResponseMessage) secondCaptor.getAllValues().getLast().getInstructions().getFirst();
         assertEquals("tool", rawResponse.getResponses().getFirst().name());
         assertEquals("unstructured tool output", rawResponse.getResponses().getFirst().responseData());
-    }
-
-    @Test
-    void toolCallbackExecutesThroughResolver() {
-        AiTool tool = mock(AiTool.class);
-        when(tool.name()).thenReturn("get_current_time");
-        when(tool.description()).thenReturn("Gets current time");
-        doReturn(Map.class).when(tool).inputType();
-        when(tool.execute(any(AiToolExecutionRequest.class))).thenReturn(Map.of("timeZone", "UTC"));
-        when(toolScopeResolver.resolveTools("admin", Set.of("get_current_time"))).thenReturn(List.of(tool));
-        when(chatModel.call(any(Prompt.class)))
-                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("done")))));
-
-        service.chat(new AiChatRequest(
-                "admin",
-                "gemini-2.5-flash",
-                0.2,
-                List.of(new AiMessage(AiMessageRole.USER, "time")),
-                null,
-                new AiToolScope(Set.of("get_current_time"))
-        ));
-
-        ArgumentCaptor<Prompt> promptCaptor = ArgumentCaptor.forClass(Prompt.class);
-        verify(chatModel).call(promptCaptor.capture());
-        GoogleGenAiChatOptions options = (GoogleGenAiChatOptions) promptCaptor.getValue().getOptions();
-        String callbackResult = options.getToolCallbacks().getFirst().call("{\"timeZone\":\"UTC\"}");
-        assertTrue(callbackResult.contains("\"timeZone\":\"UTC\""));
-        verify(tool).execute(eq(new AiToolExecutionRequest("admin", null, Map.of("timeZone", "UTC"))));
     }
 
     private record RoutingLikeResponse(boolean accepted, String reason) {
