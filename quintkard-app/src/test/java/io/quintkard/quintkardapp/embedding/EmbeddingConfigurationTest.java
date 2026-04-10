@@ -47,10 +47,12 @@ class EmbeddingConfigurationTest {
     void failsWhenConfiguredEmbeddingProviderIsMissing() {
         EmbeddingProviderProperties properties = new EmbeddingProviderProperties();
         properties.setProvider(AiProvider.GOOGLE_GENAI);
+        ObjectProvider<EmbeddingModel> googleProvider = emptyProvider();
+        ObjectProvider<EmbeddingModel> openAiProvider = emptyProvider();
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> configuration.embeddingModel(properties, emptyProvider(), emptyProvider())
+                () -> configuration.embeddingModel(properties, googleProvider, openAiProvider)
         );
 
         org.junit.jupiter.api.Assertions.assertEquals(
@@ -87,7 +89,7 @@ class EmbeddingConfigurationTest {
 
         @Override
         public T getIfUnique() {
-            return value;
+            return getIfAvailable();
         }
 
         @Override

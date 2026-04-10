@@ -1,6 +1,5 @@
 package io.quintkard.quintkardapp.embedding;
 
-import io.quintkard.quintkardapp.aimodel.AiProvider;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;

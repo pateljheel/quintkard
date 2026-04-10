@@ -154,7 +154,7 @@ class DefaultAiChatModelRegistryTest {
 
         @Override
         public T getIfUnique() {
-            return value;
+            return getIfAvailable();
         }
 
         @Override

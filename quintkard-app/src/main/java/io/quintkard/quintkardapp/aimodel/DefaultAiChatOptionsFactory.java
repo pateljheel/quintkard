@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DefaultAiChatOptionsFactory implements AiChatOptionsFactory {
 
+    private static final String USER_ID_CONTEXT_KEY = "userId";
+
     private final AiToolScopeResolver toolScopeResolver;
 
     public DefaultAiChatOptionsFactory(AiToolScopeResolver toolScopeResolver) {
@@ -67,7 +69,7 @@ public class DefaultAiChatOptionsFactory implements AiChatOptionsFactory {
                 .model(model)
                 .temperature(temperature)
                 .internalToolExecutionEnabled(false)
-                .labels(Map.of("userId", userId));
+                .labels(Map.of(USER_ID_CONTEXT_KEY, userId));
 
         if (responseSchema != null) {
             builder.responseSchema(responseSchema);
@@ -80,7 +82,7 @@ public class DefaultAiChatOptionsFactory implements AiChatOptionsFactory {
         if (!toolOptions.allowedToolNames().isEmpty()) {
             builder.toolNames(toolOptions.allowedToolNames());
             builder.toolCallbacks(toolOptions.toolCallbacks());
-            builder.toolContext(Map.of("userId", userId));
+            builder.toolContext(Map.of(USER_ID_CONTEXT_KEY, userId));
         }
 
         return builder.build();
@@ -106,7 +108,7 @@ public class DefaultAiChatOptionsFactory implements AiChatOptionsFactory {
         if (!toolOptions.allowedToolNames().isEmpty()) {
             builder.toolNames(toolOptions.allowedToolNames());
             builder.toolCallbacks(toolOptions.toolCallbacks());
-            builder.toolContext(Map.of("userId", userId));
+            builder.toolContext(Map.of(USER_ID_CONTEXT_KEY, userId));
         }
 
         return builder.build();
