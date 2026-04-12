@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -49,17 +50,19 @@ class MessageControllerTest {
         when(summary.getIngestedAt()).thenReturn(Instant.parse("2026-04-05T12:00:00Z"));
         when(summary.getSourceCreatedAt()).thenReturn(Instant.parse("2026-04-05T11:55:00Z"));
         when(messageService.listMessages(
-                "admin",
+                new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.PENDING,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 0,
-                20,
-                "invoice",
-                MessageStatus.PENDING,
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                20
         ))
-                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(0, 20), false));
+                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(0, 20, Sort.by("ingestedAt").descending()), false));
 
         mockMvc.perform(authorized(get("/api/messages"))
                         .param("query", "invoice")
@@ -73,15 +76,17 @@ class MessageControllerTest {
                 .andExpect(jsonPath("$.items[0].sourceService").value("gmail"));
 
         verify(messageService).listMessages(
-                "admin",
+                new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.PENDING,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 0,
-                20,
-                "invoice",
-                MessageStatus.PENDING,
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                20
         );
     }
 

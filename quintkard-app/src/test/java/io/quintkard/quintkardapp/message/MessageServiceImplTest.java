@@ -17,9 +17,12 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class MessageServiceImplTest {
@@ -59,79 +62,63 @@ class MessageServiceImplTest {
 
     @Test
     void listMessagesWithoutQueryUsesDefaultRepositoryPath() {
-        @SuppressWarnings("unchecked")
-        Slice<MessageSummaryProjection> expected = new SliceImpl<>(List.of(mock(MessageSummaryProjection.class)));
-        when(messageRepository.findSummariesByFiltersOrderByIngestedAtDesc(
-                eq("admin"),
-                eq(null),
-                eq("gmail"),
-                eq("EMAIL"),
-                eq(Instant.parse("2026-04-05T00:00:00Z")),
-                eq(Instant.parse("2026-04-06T00:00:00Z")),
+        Message expected = message(UUID.randomUUID(), MessageStatus.PENDING);
+        when(messageRepository.findAll(
+                any(Specification.class),
                 any(PageRequest.class)
         ))
-                .thenReturn(expected);
+                .thenReturn(new PageImpl<>(List.of(expected)));
 
         Slice<MessageSummaryProjection> result = service.listMessages(
-                "admin",
+                new MessageFilter(
+                        "admin",
+                        "   ",
+                        null,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 0,
-                25,
-                "   ",
-                null,
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                25
         );
 
-        assertSame(expected, result);
-        verify(messageRepository).findSummariesByFiltersOrderByIngestedAtDesc(
-                "admin",
-                null,
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z"),
-                PageRequest.of(0, 25)
+        assertEquals(1, result.getContent().size());
+        assertEquals(expected.getId(), result.getContent().getFirst().getId());
+        verify(messageRepository).findAll(
+                any(Specification.class),
+                eq(PageRequest.of(0, 25, Sort.by(Sort.Direction.DESC, "ingestedAt")))
         );
     }
 
     @Test
     void listMessagesWithoutQueryAndWithStatusUsesStatusRepositoryPath() {
-        @SuppressWarnings("unchecked")
-        Slice<MessageSummaryProjection> expected = new SliceImpl<>(List.of(mock(MessageSummaryProjection.class)));
-        when(messageRepository.findSummariesByFiltersOrderByIngestedAtDesc(
-                eq("admin"),
-                eq(MessageStatus.FAILED),
-                eq("slack"),
-                eq("CHANNEL_MESSAGE"),
-                eq(Instant.parse("2026-04-05T00:00:00Z")),
-                eq(Instant.parse("2026-04-06T00:00:00Z")),
+        Message expected = message(UUID.randomUUID(), MessageStatus.FAILED);
+        when(messageRepository.findAll(
+                any(Specification.class),
                 any(PageRequest.class)
         ))
-                .thenReturn(expected);
+                .thenReturn(new PageImpl<>(List.of(expected)));
 
         Slice<MessageSummaryProjection> result = service.listMessages(
-                "admin",
+                new MessageFilter(
+                        "admin",
+                        null,
+                        MessageStatus.FAILED,
+                        " slack ",
+                        " CHANNEL_MESSAGE ",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 0,
-                -1,
-                null,
-                MessageStatus.FAILED,
-                " slack ",
-                " CHANNEL_MESSAGE ",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                -1
         );
 
-        assertSame(expected, result);
-        verify(messageRepository).findSummariesByFiltersOrderByIngestedAtDesc(
-                "admin",
-                MessageStatus.FAILED,
-                "slack",
-                "CHANNEL_MESSAGE",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z"),
-                PageRequest.of(0, 20)
+        assertEquals(1, result.getContent().size());
+        assertEquals(expected.getId(), result.getContent().getFirst().getId());
+        verify(messageRepository).findAll(
+                any(Specification.class),
+                eq(PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "ingestedAt")))
         );
     }
 
@@ -139,40 +126,46 @@ class MessageServiceImplTest {
     void listMessagesWithQueryUsesSearchRepositoryPath() {
         @SuppressWarnings("unchecked")
         Slice<MessageSummaryProjection> expected = new SliceImpl<>(List.of(mock(MessageSummaryProjection.class)));
-        when(messageRepository.searchSummariesByUserId(
-                eq("admin"),
-                eq("SUCCESS"),
-                eq("gmail"),
-                eq("EMAIL"),
-                eq(Instant.parse("2026-04-05T00:00:00Z")),
-                eq(Instant.parse("2026-04-06T00:00:00Z")),
-                eq("invoice"),
+        when(messageRepository.searchSummaries(
+                eq(new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.SUCCESS,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                )),
                 any(PageRequest.class)
         ))
                 .thenReturn(expected);
 
         Slice<MessageSummaryProjection> result = service.listMessages(
-                "admin",
+                new MessageFilter(
+                        "admin",
+                        "  invoice  ",
+                        MessageStatus.SUCCESS,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 -5,
-                500,
-                "  invoice  ",
-                MessageStatus.SUCCESS,
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                500
         );
 
         assertSame(expected, result);
-        verify(messageRepository).searchSummariesByUserId(
-                "admin",
-                "SUCCESS",
-                "gmail",
-                "EMAIL",
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z"),
-                "invoice",
-                PageRequest.of(0, 100)
+        verify(messageRepository).searchSummaries(
+                new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.SUCCESS,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
+                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "ingestedAt"))
         );
     }
 

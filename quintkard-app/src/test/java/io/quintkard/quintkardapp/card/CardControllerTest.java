@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -50,16 +51,18 @@ class CardControllerTest {
         when(summary.getCreatedAt()).thenReturn(Instant.parse("2026-04-05T00:00:00Z"));
         when(summary.getUpdatedAt()).thenReturn(Instant.parse("2026-04-05T01:00:00Z"));
         when(cardService.listCards(
-                "admin",
+                new CardFilter(
+                        "admin",
+                        "invoice",
+                        CardStatus.OPEN,
+                        CardType.FOLLOW_UP,
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 1,
-                10,
-                "invoice",
-                CardStatus.OPEN,
-                CardType.FOLLOW_UP,
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                10
         ))
-                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(1, 10), false));
+                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(1, 10, Sort.by("updatedAt").descending()), false));
 
         mockMvc.perform(authorized(get("/api/cards"))
                         .param("page", "1")
@@ -76,14 +79,16 @@ class CardControllerTest {
                 .andExpect(jsonPath("$.size").value(10));
 
         verify(cardService).listCards(
-                "admin",
+                new CardFilter(
+                        "admin",
+                        "invoice",
+                        CardStatus.OPEN,
+                        CardType.FOLLOW_UP,
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
                 1,
-                10,
-                "invoice",
-                CardStatus.OPEN,
-                CardType.FOLLOW_UP,
-                Instant.parse("2026-04-05T00:00:00Z"),
-                Instant.parse("2026-04-06T00:00:00Z")
+                10
         );
     }
 

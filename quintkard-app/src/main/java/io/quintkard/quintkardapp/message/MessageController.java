@@ -39,10 +39,8 @@ public class MessageController {
             @RequestParam(required = false) Instant ingestedAfter,
             @RequestParam(required = false) Instant ingestedBefore
     ) {
-        Slice<MessageSummaryProjection> messages = messageService.listMessages(
+        MessageFilter filter = new MessageFilter(
                 authentication.getName(),
-                page,
-                size,
                 query,
                 status,
                 sourceService,
@@ -50,6 +48,7 @@ public class MessageController {
                 ingestedAfter,
                 ingestedBefore
         );
+        Slice<MessageSummaryProjection> messages = messageService.listMessages(filter, page, size);
 
         return MessageSliceResponse.from(messages);
     }

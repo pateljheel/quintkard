@@ -51,17 +51,19 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
     }
 
     @Override
-    public Slice<CardSummaryProjection> searchHybridSummariesByUserId(
-            String userId,
-            CardStatus status,
-            CardType cardType,
-            Instant updatedAfter,
-            Instant updatedBefore,
-            String query,
+    public Slice<CardSummaryProjection> searchHybridSummaries(
+            CardFilter filter,
             String embeddingModel,
             float[] queryEmbedding,
             Pageable pageable
     ) {
+        String userId = filter.userId();
+        CardStatus status = filter.status();
+        CardType cardType = filter.cardType();
+        Instant updatedAfter = filter.updatedAfter();
+        Instant updatedBefore = filter.updatedBefore();
+        String query = filter.query();
+
         int pageSize = pageable.getPageSize();
         int offset = (int) pageable.getOffset();
         int textProbeLimit = Math.max((pageable.getPageNumber() + 1) * pageSize * 5, MIN_TEXT_PROBE_LIMIT);

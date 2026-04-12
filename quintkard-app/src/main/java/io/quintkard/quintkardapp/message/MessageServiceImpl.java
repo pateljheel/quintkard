@@ -1,9 +1,9 @@
 package io.quintkard.quintkardapp.message;
 
-import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,41 +29,29 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<MessageSummaryProjection> listMessages(
-            String userId,
-            int page,
-            int size,
-            String query,
-            MessageStatus status,
-            String sourceService,
-            String messageType,
-            Instant ingestedAfter,
-            Instant ingestedBefore
-    ) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), normalizePageSize(size));
-        String normalizedSourceService = trimToNull(sourceService);
-        String normalizedMessageType = trimToNull(messageType);
+    public Slice<MessageSummaryProjection> listMessages(MessageFilter filter, int page, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                normalizePageSize(size),
+                Sort.by(Sort.Direction.DESC, "ingestedAt")
+        );
+        MessageFilter normalizedFilter = new MessageFilter(
+                filter.userId(),
+                trimToNull(filter.query()),
+                filter.status(),
+                trimToNull(filter.sourceService()),
+                trimToNull(filter.messageType()),
+                filter.ingestedAfter(),
+                filter.ingestedBefore()
+        );
 
-        if (query == null || query.isBlank()) {
-            return messageRepository.findSummariesByFiltersOrderByIngestedAtDesc(
-                    userId,
-                    status,
-                    normalizedSourceService,
-                    normalizedMessageType,
-                    ingestedAfter,
-                    ingestedBefore,
-                    pageable
-            );
+        if (normalizedFilter.query() == null) {
+            return messageRepository.findAll(MessageSpecifications.fromFilter(normalizedFilter), pageable)
+                    .map(MessageSummaryItem::from);
         }
 
-        return messageRepository.searchSummariesByUserId(
-                userId,
-                status == null ? null : status.name(),
-                normalizedSourceService,
-                normalizedMessageType,
-                ingestedAfter,
-                ingestedBefore,
-                query.trim(),
+        return messageRepository.searchSummaries(
+                normalizedFilter,
                 pageable
         );
     }

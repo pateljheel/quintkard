@@ -1,6 +1,7 @@
 package io.quintkard.quintkardapp.agenttool;
 
 import io.quintkard.quintkardapp.card.CardService;
+import io.quintkard.quintkardapp.card.CardFilter;
 import io.quintkard.quintkardapp.card.CardSummaryProjection;
 import io.quintkard.quintkardapp.card.CardSliceResponse;
 import org.springframework.data.domain.Slice;
@@ -37,14 +38,16 @@ public class HybridSearchCardsTool extends AbstractCardAiTool {
         }
 
         Slice<CardSummaryProjection> cards = cardService.listCards(
-                request.userId(),
+                new CardFilter(
+                        request.userId(),
+                        arguments.query(),
+                        parseCardStatus(arguments.status(), false),
+                        null,
+                        null,
+                        null
+                ),
                 0,
-                normalizeLimit(arguments.limit()),
-                arguments.query(),
-                parseCardStatus(arguments.status(), false),
-                null,
-                null,
-                null
+                normalizeLimit(arguments.limit())
         );
         return CardSliceResponse.from(cards);
     }

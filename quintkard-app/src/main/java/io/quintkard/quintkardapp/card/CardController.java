@@ -73,16 +73,15 @@ public class CardController {
             @RequestParam(required = false) Instant updatedAfter,
             @RequestParam(required = false) Instant updatedBefore
     ) {
-        Slice<CardSummaryProjection> cards = cardService.listCards(
+        CardFilter filter = new CardFilter(
                 authentication.getName(),
-                page,
-                size,
                 query,
                 status,
                 cardType,
                 updatedAfter,
                 updatedBefore
         );
+        Slice<CardSummaryProjection> cards = cardService.listCards(filter, page, size);
         return CardSliceResponse.from(cards);
     }
 }

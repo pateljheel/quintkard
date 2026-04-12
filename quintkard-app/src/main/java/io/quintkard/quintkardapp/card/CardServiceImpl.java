@@ -4,11 +4,11 @@ import io.quintkard.quintkardapp.embedding.EmbeddingProperties;
 import io.quintkard.quintkardapp.embedding.EmbeddingService;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
-import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,38 +109,32 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<CardSummaryProjection> listCards(
-            String userId,
-            int page,
-            int size,
-            String query,
-            CardStatus status,
-            CardType cardType,
-            Instant updatedAfter,
-            Instant updatedBefore
-    ) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), normalizePageSize(size));
+    public Slice<CardSummaryProjection> listCards(CardFilter filter, int page, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                normalizePageSize(size),
+                Sort.by(Sort.Direction.DESC, "updatedAt")
+        );
 
-        if (query == null || query.isBlank()) {
-            return cardRepository.findSummariesByFiltersOrderByUpdatedAtDesc(
-                    userId,
-                    status,
-                    cardType,
-                    updatedAfter,
-                    updatedBefore,
-                    pageable
-            );
+        if (filter.query() == null || filter.query().isBlank()) {
+            return cardRepository.findAll(CardSpecifications.fromFilter(filter), pageable)
+                    .map(CardSummaryItem::from);
         }
 
-        return cardRepository.searchHybridSummariesByUserId(
-                userId,
-                status,
-                cardType,
-                updatedAfter,
-                updatedBefore,
-                query.trim(),
+        String normalizedQuery = filter.query().trim();
+        CardFilter normalizedFilter = new CardFilter(
+                filter.userId(),
+                normalizedQuery,
+                filter.status(),
+                filter.cardType(),
+                filter.updatedAfter(),
+                filter.updatedBefore()
+        );
+
+        return cardRepository.searchHybridSummaries(
+                normalizedFilter,
                 embeddingProperties.model(),
-                embeddingService.embed(query.trim()),
+                embeddingService.embed(normalizedQuery),
                 pageable
         );
     }
