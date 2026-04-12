@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -49,21 +50,46 @@ class CardControllerTest {
         when(summary.getDueDate()).thenReturn(LocalDate.of(2026, 5, 29));
         when(summary.getCreatedAt()).thenReturn(Instant.parse("2026-04-05T00:00:00Z"));
         when(summary.getUpdatedAt()).thenReturn(Instant.parse("2026-04-05T01:00:00Z"));
-        when(cardService.listCards("admin", 1, 10, "invoice", CardStatus.OPEN))
-                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(1, 10), false));
+        when(cardService.listCards(
+                new CardFilter(
+                        "admin",
+                        "invoice",
+                        CardStatus.OPEN,
+                        CardType.FOLLOW_UP,
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
+                1,
+                10
+        ))
+                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(1, 10, Sort.by("updatedAt").descending()), false));
 
         mockMvc.perform(authorized(get("/api/cards"))
                         .param("page", "1")
                         .param("size", "10")
                         .param("query", "invoice")
-                        .param("status", "OPEN"))
+                        .param("status", "OPEN")
+                        .param("cardType", "FOLLOW_UP")
+                        .param("updatedAfter", "2026-04-05T00:00:00Z")
+                        .param("updatedBefore", "2026-04-06T00:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].id").value(cardId.toString()))
                 .andExpect(jsonPath("$.items[0].title").value("Follow up"))
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.size").value(10));
 
-        verify(cardService).listCards("admin", 1, 10, "invoice", CardStatus.OPEN);
+        verify(cardService).listCards(
+                new CardFilter(
+                        "admin",
+                        "invoice",
+                        CardStatus.OPEN,
+                        CardType.FOLLOW_UP,
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
+                1,
+                10
+        );
     }
 
     @Test

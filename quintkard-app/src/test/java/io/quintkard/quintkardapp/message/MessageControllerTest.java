@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -48,17 +49,45 @@ class MessageControllerTest {
         when(summary.getSummary()).thenReturn("Invoice follow up");
         when(summary.getIngestedAt()).thenReturn(Instant.parse("2026-04-05T12:00:00Z"));
         when(summary.getSourceCreatedAt()).thenReturn(Instant.parse("2026-04-05T11:55:00Z"));
-        when(messageService.listMessages("admin", 0, 20, "invoice", MessageStatus.PENDING))
-                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(0, 20), false));
+        when(messageService.listMessages(
+                new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.PENDING,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
+                0,
+                20
+        ))
+                .thenReturn(new SliceImpl<>(java.util.List.of(summary), PageRequest.of(0, 20, Sort.by("ingestedAt").descending()), false));
 
         mockMvc.perform(authorized(get("/api/messages"))
                         .param("query", "invoice")
-                        .param("status", "PENDING"))
+                        .param("status", "PENDING")
+                        .param("sourceService", "gmail")
+                        .param("messageType", "EMAIL")
+                        .param("ingestedAfter", "2026-04-05T00:00:00Z")
+                        .param("ingestedBefore", "2026-04-06T00:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].id").value(messageId.toString()))
                 .andExpect(jsonPath("$.items[0].sourceService").value("gmail"));
 
-        verify(messageService).listMessages("admin", 0, 20, "invoice", MessageStatus.PENDING);
+        verify(messageService).listMessages(
+                new MessageFilter(
+                        "admin",
+                        "invoice",
+                        MessageStatus.PENDING,
+                        "gmail",
+                        "EMAIL",
+                        Instant.parse("2026-04-05T00:00:00Z"),
+                        Instant.parse("2026-04-06T00:00:00Z")
+                ),
+                0,
+                20
+        );
     }
 
     @Test

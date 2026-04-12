@@ -27,6 +27,19 @@ function buildHeaders() {
   return headers;
 }
 
+function toInstantParam(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "";
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
 export default function MessagesPage() {
   const [messages, setMessages] = useState<MessageListItem[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<MessageResponse | null>(null);
@@ -36,12 +49,16 @@ export default function MessagesPage() {
   const [mutating, setMutating] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sourceServiceFilter, setSourceServiceFilter] = useState("");
+  const [messageTypeFilter, setMessageTypeFilter] = useState("");
+  const [ingestedAfterFilter, setIngestedAfterFilter] = useState("");
+  const [ingestedBeforeFilter, setIngestedBeforeFilter] = useState("");
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [sourceService, setSourceService] = useState("gmail");
-  const [messageType, setMessageType] = useState("email");
+  const [ingestSourceService, setIngestSourceService] = useState("gmail");
+  const [ingestMessageType, setIngestMessageType] = useState("email");
   const [externalMessageId, setExternalMessageId] = useState("");
   const [payload, setPayload] = useState("");
 
@@ -60,6 +77,24 @@ export default function MessagesPage() {
 
     if (statusFilter) {
       params.set("status", statusFilter);
+    }
+
+    if (sourceServiceFilter.trim()) {
+      params.set("sourceService", sourceServiceFilter.trim());
+    }
+
+    if (messageTypeFilter.trim()) {
+      params.set("messageType", messageTypeFilter.trim());
+    }
+
+    const ingestedAfterParam = toInstantParam(ingestedAfterFilter);
+    if (ingestedAfterParam) {
+      params.set("ingestedAfter", ingestedAfterParam);
+    }
+
+    const ingestedBeforeParam = toInstantParam(ingestedBeforeFilter);
+    if (ingestedBeforeParam) {
+      params.set("ingestedBefore", ingestedBeforeParam);
     }
 
     try {
@@ -203,9 +238,9 @@ export default function MessagesPage() {
         method: "POST",
         headers: buildHeaders(),
         body: JSON.stringify({
-          sourceService,
+          sourceService: ingestSourceService,
           externalMessageId: externalMessageId || null,
-          messageType,
+          messageType: ingestMessageType,
           payload,
           metadata: null,
           details: null,
@@ -271,6 +306,42 @@ export default function MessagesPage() {
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="field">
+                  <span>Source service</span>
+                  <input
+                    placeholder="gmail"
+                    value={sourceServiceFilter}
+                    onChange={(event) => setSourceServiceFilter(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Message type</span>
+                  <input
+                    placeholder="EMAIL"
+                    value={messageTypeFilter}
+                    onChange={(event) => setMessageTypeFilter(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Ingested after</span>
+                  <input
+                    type="datetime-local"
+                    value={ingestedAfterFilter}
+                    onChange={(event) => setIngestedAfterFilter(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Ingested before</span>
+                  <input
+                    type="datetime-local"
+                    value={ingestedBeforeFilter}
+                    onChange={(event) => setIngestedBeforeFilter(event.target.value)}
+                  />
                 </label>
               </div>
 
@@ -415,12 +486,18 @@ export default function MessagesPage() {
                 <div className="form-grid">
                   <label className="field">
                     <span>Source service</span>
-                    <input value={sourceService} onChange={(event) => setSourceService(event.target.value)} />
+                    <input
+                      value={ingestSourceService}
+                      onChange={(event) => setIngestSourceService(event.target.value)}
+                    />
                   </label>
 
                   <label className="field">
                     <span>Message type</span>
-                    <input value={messageType} onChange={(event) => setMessageType(event.target.value)} />
+                    <input
+                      value={ingestMessageType}
+                      onChange={(event) => setIngestMessageType(event.target.value)}
+                    />
                   </label>
                 </div>
 

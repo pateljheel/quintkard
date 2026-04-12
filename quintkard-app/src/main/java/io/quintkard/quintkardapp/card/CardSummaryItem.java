@@ -18,6 +18,22 @@ public record CardSummaryItem(
         Instant updatedAt
 ) implements CardSummaryProjection {
 
+    public static CardSummaryItem from(Card card) {
+        return new CardSummaryItem(
+                card.getId(),
+                card.getUser().getUserId(),
+                card.getTitle(),
+                card.getSummary(),
+                card.getCardType(),
+                card.getStatus(),
+                card.getPriority(),
+                card.getDueDate(),
+                card.getSourceMessageId(),
+                card.getCreatedAt(),
+                card.getUpdatedAt()
+        );
+    }
+
     @Override
     public UUID getId() {
         return id;

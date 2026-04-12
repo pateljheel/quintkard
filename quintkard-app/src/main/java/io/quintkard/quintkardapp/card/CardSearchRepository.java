@@ -5,10 +5,8 @@ import org.springframework.data.domain.Slice;
 
 public interface CardSearchRepository {
 
-    Slice<CardSummaryProjection> searchHybridSummariesByUserId(
-            String userId,
-            CardStatus status,
-            String query,
+    Slice<CardSummaryProjection> searchHybridSummaries(
+            CardFilter filter,
             String embeddingModel,
             float[] queryEmbedding,
             Pageable pageable

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import io.quintkard.quintkardapp.card.Card;
 import io.quintkard.quintkardapp.card.CardPriority;
+import io.quintkard.quintkardapp.card.CardFilter;
 import io.quintkard.quintkardapp.card.CardRequest;
 import io.quintkard.quintkardapp.card.CardResponse;
 import io.quintkard.quintkardapp.card.CardService;
@@ -205,7 +206,11 @@ class CardToolsTest {
         when(summary.getCardType()).thenReturn(CardType.FOLLOW_UP);
         when(summary.getStatus()).thenReturn(CardStatus.OPEN);
         when(summary.getPriority()).thenReturn(CardPriority.MEDIUM);
-        when(cardService.listCards("admin", 0, 10, "invoice", CardStatus.OPEN))
+        when(cardService.listCards(
+                new CardFilter("admin", "invoice", CardStatus.OPEN, null, null, null),
+                0,
+                10
+        ))
                 .thenReturn(new SliceImpl<>(List.of(summary)));
 
         CardSliceResponse response = (CardSliceResponse) tool.execute(new AiToolExecutionRequest(
@@ -220,7 +225,11 @@ class CardToolsTest {
 
         assertEquals(1, response.items().size());
         assertEquals("Follow up", response.items().getFirst().title());
-        verify(cardService).listCards("admin", 0, 10, "invoice", CardStatus.OPEN);
+        verify(cardService).listCards(
+                new CardFilter("admin", "invoice", CardStatus.OPEN, null, null, null),
+                0,
+                10
+        );
     }
 
     @Test

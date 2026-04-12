@@ -1,6 +1,7 @@
 package io.quintkard.quintkardapp.card;
 
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
@@ -67,15 +68,20 @@ public class CardController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) CardStatus status
+            @RequestParam(required = false) CardStatus status,
+            @RequestParam(required = false) CardType cardType,
+            @RequestParam(required = false) Instant updatedAfter,
+            @RequestParam(required = false) Instant updatedBefore
     ) {
-        Slice<CardSummaryProjection> cards = cardService.listCards(
+        CardFilter filter = new CardFilter(
                 authentication.getName(),
-                page,
-                size,
                 query,
-                status
+                status,
+                cardType,
+                updatedAfter,
+                updatedBefore
         );
+        Slice<CardSummaryProjection> cards = cardService.listCards(filter, page, size);
         return CardSliceResponse.from(cards);
     }
 }

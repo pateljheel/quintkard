@@ -3,6 +3,7 @@ package io.quintkard.quintkardapp.message;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,26 +29,29 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<MessageSummaryProjection> listMessages(
-            String userId,
-            int page,
-            int size,
-            String query,
-            MessageStatus status
-    ) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), normalizePageSize(size));
+    public Slice<MessageSummaryProjection> listMessages(MessageFilter filter, int page, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                normalizePageSize(size),
+                Sort.by(Sort.Direction.DESC, "ingestedAt")
+        );
+        MessageFilter normalizedFilter = new MessageFilter(
+                filter.userId(),
+                trimToNull(filter.query()),
+                filter.status(),
+                trimToNull(filter.sourceService()),
+                trimToNull(filter.messageType()),
+                filter.ingestedAfter(),
+                filter.ingestedBefore()
+        );
 
-        if (query == null || query.isBlank()) {
-            if (status == null) {
-                return messageRepository.findSummariesByUserUserIdOrderByIngestedAtDesc(userId, pageable);
-            }
-            return messageRepository.findSummariesByUserUserIdAndStatusOrderByIngestedAtDesc(userId, status, pageable);
+        if (normalizedFilter.query() == null) {
+            return messageRepository.findAll(MessageSpecifications.fromFilter(normalizedFilter), pageable)
+                    .map(MessageSummaryItem::from);
         }
 
-        return messageRepository.searchSummariesByUserId(
-                userId,
-                status == null ? null : status.name(),
-                query.trim(),
+        return messageRepository.searchSummaries(
+                normalizedFilter,
                 pageable
         );
     }
@@ -81,5 +85,13 @@ public class MessageServiceImpl implements MessageService {
             case FAILED -> message.markFailed();
             case SUCCESS -> message.markSuccess();
         }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

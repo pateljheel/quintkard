@@ -7,7 +7,7 @@ public interface MessageService {
 
     Message getMessage(String userId, UUID messageId);
 
-    Slice<MessageSummaryProjection> listMessages(String userId, int page, int size, String query, MessageStatus status);
+    Slice<MessageSummaryProjection> listMessages(MessageFilter filter, int page, int size);
 
     Message updateMessageStatus(String userId, UUID messageId, MessageStatus status);
 

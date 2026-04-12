@@ -15,7 +15,7 @@ public interface CardService {
 
     Card changeCardStatus(String userId, UUID cardId, CardStatus status);
 
-    Slice<CardSummaryProjection> listCards(String userId, int page, int size, String query, CardStatus status);
+    Slice<CardSummaryProjection> listCards(CardFilter filter, int page, int size);
 
 //    List<Card> searchCards(String userId, String query, int limit);
 }
