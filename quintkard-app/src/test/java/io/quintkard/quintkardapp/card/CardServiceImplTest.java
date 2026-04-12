@@ -160,17 +160,17 @@ class CardServiceImplTest {
         assertSame(expectedSlice, result);
         verify(embeddingService).embed("invoice follow up");
         verify(cardRepository).searchHybridSummaries(
-                eq(new CardFilter(
+                new CardFilter(
                         "admin",
                         "invoice follow up",
                         CardStatus.OPEN,
                         CardType.FOLLOW_UP,
                         Instant.parse("2026-04-05T00:00:00Z"),
                         Instant.parse("2026-04-06T00:00:00Z")
-                )),
-                eq("gemini-embedding-001"),
-                eq(embedding),
-                eq(PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "updatedAt")))
+                ),
+                "gemini-embedding-001",
+                embedding,
+                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "updatedAt"))
         );
     }
 

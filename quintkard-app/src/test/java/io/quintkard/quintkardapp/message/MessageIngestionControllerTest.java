@@ -37,7 +37,7 @@ class MessageIngestionControllerTest {
     @Test
     void ingestMessageUsesAuthenticatedUser() throws Exception {
         Message message = message(UUID.randomUUID(), "gmail", "EMAIL");
-        when(messageIngestionService.ingestMessage(eq("admin"), eq(new MessageEnvelope(
+        when(messageIngestionService.ingestMessage("admin", new MessageEnvelope(
                 "gmail",
                 "ext-1",
                 "EMAIL",
@@ -45,7 +45,7 @@ class MessageIngestionControllerTest {
                 Map.of("threadId", "t-1"),
                 Map.of("priority", "high"),
                 Instant.parse("2026-04-05T11:55:00Z")
-        )))).thenReturn(message);
+        ))).thenReturn(message);
 
         mockMvc.perform(authorized(post("/api/messages/ingest"))
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
@@ -65,7 +65,7 @@ class MessageIngestionControllerTest {
                 .andExpect(jsonPath("$.sourceService").value("gmail"))
                 .andExpect(jsonPath("$.messageType").value("EMAIL"));
 
-        verify(messageIngestionService).ingestMessage(eq("admin"), eq(new MessageEnvelope(
+        verify(messageIngestionService).ingestMessage("admin", new MessageEnvelope(
                 "gmail",
                 "ext-1",
                 "EMAIL",
@@ -73,7 +73,7 @@ class MessageIngestionControllerTest {
                 Map.of("threadId", "t-1"),
                 Map.of("priority", "high"),
                 Instant.parse("2026-04-05T11:55:00Z")
-        )));
+        ));
     }
 
     @Test
