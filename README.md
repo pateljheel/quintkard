@@ -19,14 +19,18 @@ The system is designed around user-level multi-tenancy: cards, messages, agents,
 - [Backend architecture](./docs/backend-architecture.md)
   Detailed overview of the backend runtime flow, key design decisions, and extension points.
 
-## Main capabilities
+## Current MVPs
 
-- Ingest and queue messages for processing
-- Route messages through an orchestrator and agent loop
-- Create, update, search, and manage cards
-- Hybrid card search using full-text search plus embeddings
-- User-scoped agent tools for card workflows and utility tasks
-- Structured logging with MDC correlation fields
+- Message ingestion and database-backed queue processing
+- AI filtering and routing orchestration
+- Configurable agent execution with bounded tool loops
+- Card CRUD and status management
+- AI card tools for create, update, search, and status changes
+- Hybrid card search with full-text and embeddings
+- Message search and filtering
+- Agent and orchestrator configuration UI
+- Authenticated browser-based app flow
+- Structured logging, migrations, and test/coverage setup
 
 ## Roadmap
 
