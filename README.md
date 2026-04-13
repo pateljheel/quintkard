@@ -46,6 +46,8 @@ The system is designed around user-level multi-tenancy: cards, messages, agents,
    Add support and test coverage for additional AI providers beyond the current Google GenAI setup.
 6. AI provider failure handling:
    Add more robust handling for AI provider failures, including retries.
+7. Card update history:
+   Append card changes as history instead of always replacing card details in place so change context is preserved over time.
 
 ## Local prerequisites
 
