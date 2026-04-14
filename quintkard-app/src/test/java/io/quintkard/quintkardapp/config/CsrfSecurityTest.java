@@ -95,7 +95,7 @@ class CsrfSecurityTest {
 
         String csrfPayload = csrfResult.getResponse().getContentAsString();
         JsonNode payload = objectMapper.readTree(csrfPayload);
-        String token = payload.get("token").asText();
+        String token = payload.get("token").textValue();
         jakarta.servlet.http.Cookie csrfCookie =
                 csrfResult.getResponse().getCookie(CSRF_COOKIE_NAME);
 
