@@ -2,8 +2,11 @@
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=pateljheel_quintkard&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=pateljheel_quintkard)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=pateljheel_quintkard&metric=coverage)](https://sonarcloud.io/summary/new_code?id=pateljheel_quintkard)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 
 Quintkard is a local-first workflow assistant for turning inbound messages into actionable cards. It combines a Spring Boot backend, a Next.js UI, database-backed message processing, AI-driven orchestration, agent tools, and hybrid card search.
+
+The system is designed around user-level multi-tenancy: cards, messages, agents, orchestrator settings, and AI tool execution are intended to be scoped per user. At the moment, local usage and the main verified flow are still centered on the seeded `admin` user, so broader multi-user behavior should be treated as design intent rather than fully verified runtime coverage.
 
 ## Modules
 
@@ -12,14 +15,23 @@ Quintkard is a local-first workflow assistant for turning inbound messages into 
 - `quintkard-ui`
   Next.js frontend for cards, messages, agents, orchestrator settings, and account management.
 
-## Main capabilities
+## Architecture
 
-- Ingest and queue messages for processing
-- Route messages through an orchestrator and agent loop
-- Create, update, search, and manage cards
-- Hybrid card search using full-text search plus embeddings
-- User-scoped agent tools for card workflows and utility tasks
-- Structured logging with MDC correlation fields
+- [Backend architecture](./docs/backend-architecture.md)
+  Detailed overview of the backend runtime flow, key design decisions, and extension points.
+
+## Current MVPs
+
+- Message ingestion and database-backed queue processing
+- AI filtering and routing orchestration
+- Configurable agent execution with bounded tool loops
+- Card CRUD and status management
+- AI card tools for create, update, search, and status changes
+- Hybrid card search with full-text and embeddings
+- Message search and filtering
+- Agent and orchestrator configuration UI
+- Authenticated browser-based app flow
+- Structured logging, migrations, and test/coverage setup
 
 ## Roadmap
 
@@ -29,12 +41,14 @@ Quintkard is a local-first workflow assistant for turning inbound messages into 
    Improve the cards UI so actionable items stand out more clearly and are easier to triage quickly.
 3. Message ingestion plugins:
    Add plugins for ingesting messages from Gmail and Slack.
-4. Stronger card filtering:
-   Expand the cards UI with richer filtering and narrowing options.
-5. Semantic linking:
+4. Semantic linking:
    Add semantic linking across cards and messages to surface related work and context automatically.
-6. Broader AI provider support:
+5. Broader AI provider support:
    Add support and test coverage for additional AI providers beyond the current Google GenAI setup.
+6. AI provider failure handling:
+   Add more robust handling for AI provider failures, including retries.
+7. Card update history:
+   Append card changes as history instead of always replacing card details in place so change context is preserved over time.
 
 ## Local prerequisites
 
