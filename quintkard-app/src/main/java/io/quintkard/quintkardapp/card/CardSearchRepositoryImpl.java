@@ -53,11 +53,11 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
     @Override
     public Slice<CardSummaryProjection> searchHybridSummaries(
             CardFilter filter,
+            long userFk,
             String embeddingModel,
             float[] queryEmbedding,
             Pageable pageable
     ) {
-        String userId = filter.userId();
         CardStatus status = filter.status();
         CardType cardType = filter.cardType();
         Instant updatedAfter = filter.updatedAfter();
@@ -80,8 +80,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                         ce.card_fk as card_id,
                         cast(ce.embedding_vector as %s) <=> cast(? as %s) as semantic_distance
                     from card_embeddings ce
-                    join users u on u.id = ce.user_fk
-                    where u.user_id = ?
+                    where ce.user_fk = ?
                       and ce.embedding_model = ?
                     order by cast(ce.embedding_vector as %s) <=> cast(? as %s) asc
                     limit ?
@@ -122,8 +121,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                             websearch_to_tsquery('english', ?)
                         ) as text_score
                     from cards c
-                    join users u on u.id = c.user_fk
-                    where u.user_id = ?
+                    where c.user_fk = ?
                 """ + cardStatusClause + cardTypeClause + cardUpdatedAfterClause + cardUpdatedBeforeClause + """
                       and to_tsvector(
                             'english',
@@ -147,7 +145,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                 )
                 select
                     c.id,
-                    u.user_id,
+                    ? as user_id,
                     c.title,
                     c.summary,
                     c.card_type,
@@ -159,7 +157,6 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     c.updated_at
                 from candidates candidate
                 join cards c on c.id = candidate.card_id
-                join users u on u.id = c.user_fk
                 left join text_ranked tr on tr.card_id = c.id
                 left join semantic_ranked sr on sr.card_id = c.id
                 order by
@@ -176,7 +173,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
 
         List<Object> parameters = new ArrayList<>();
         parameters.add(queryVector);
-        parameters.add(userId);
+        parameters.add(userFk);
         parameters.add(embeddingModel);
         parameters.add(queryVector);
         parameters.add(semanticProbeLimit);
@@ -194,7 +191,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
             parameters.add(Timestamp.from(updatedBefore));
         }
         parameters.add(query);
-        parameters.add(userId);
+        parameters.add(userFk);
         if (status != null) {
             parameters.add(status.name());
         }
@@ -209,6 +206,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         }
         parameters.add(query);
         parameters.add(textProbeLimit);
+        parameters.add(filter.userId());
         parameters.add(RRF_K);
         parameters.add(RRF_K);
         parameters.add(RRF_K);

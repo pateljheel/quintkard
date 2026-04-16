@@ -107,6 +107,7 @@ class CardSearchRepositoryImplIntegrationTest {
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", CardStatus.OPEN, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -126,6 +127,7 @@ class CardSearchRepositoryImplIntegrationTest {
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", null, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -147,6 +149,7 @@ class CardSearchRepositoryImplIntegrationTest {
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", null, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -199,6 +202,7 @@ class CardSearchRepositoryImplIntegrationTest {
                         Instant.parse("2026-04-05T01:00:00Z"),
                         Instant.parse("2026-04-05T03:00:00Z")
                 ),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)

@@ -7,6 +7,7 @@ public interface CardSearchRepository {
 
     Slice<CardSummaryProjection> searchHybridSummaries(
             CardFilter filter,
+            long userFk,
             String embeddingModel,
             float[] queryEmbedding,
             Pageable pageable
