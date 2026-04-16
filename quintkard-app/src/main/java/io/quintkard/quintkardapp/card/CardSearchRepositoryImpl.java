@@ -69,22 +69,21 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         int textProbeLimit = Math.max((pageable.getPageNumber() + 1) * pageSize * 5, MIN_TEXT_PROBE_LIMIT);
         int semanticProbeLimit = Math.max((pageable.getPageNumber() + 1) * pageSize * 20, MIN_SEMANTIC_PROBE_LIMIT);
         String queryVector = toVectorLiteral(queryEmbedding);
-        String statusClause = status == null ? "" : " and c.status = ?\n";
+        String halfvecType = "halfvec(" + embeddingProperties.dimensions() + ")";
+        String cardStatusClause = status == null ? "" : " and c.status = ?\n";
         String cardTypeClause = cardType == null ? "" : " and c.card_type = ?\n";
-        String updatedAfterClause = updatedAfter == null ? "" : " and c.updated_at >= ?\n";
-        String updatedBeforeClause = updatedBefore == null ? "" : " and c.updated_at <= ?\n";
-        String sql = """
+        String cardUpdatedAfterClause = updatedAfter == null ? "" : " and c.updated_at >= ?\n";
+        String cardUpdatedBeforeClause = updatedBefore == null ? "" : " and c.updated_at <= ?\n";
+        String sql = ("""
                 with semantic_chunk_matches as (
                     select
                         ce.card_fk as card_id,
-                        ce.embedding_vector <=> cast(? as vector) as semantic_distance
+                        cast(ce.embedding_vector as %s) <=> cast(? as %s) as semantic_distance
                     from card_embeddings ce
-                    join cards c on c.id = ce.card_fk
-                    join users u on u.id = c.user_fk
+                    join users u on u.id = ce.user_fk
                     where u.user_id = ?
                       and ce.embedding_model = ?
-                """ + statusClause + cardTypeClause + updatedAfterClause + updatedBeforeClause + """
-                    order by ce.embedding_vector <=> cast(? as vector) asc
+                    order by cast(ce.embedding_vector as %s) <=> cast(? as %s) asc
                     limit ?
                 ),
                 semantic_matches as (
@@ -95,11 +94,20 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     group by card_id
                     having min(semantic_distance) <= ?
                 ),
+                semantic_filtered as (
+                    select
+                        sm.card_id,
+                        sm.semantic_distance
+                    from semantic_matches sm
+                    join cards c on c.id = sm.card_id
+                    where 1 = 1
+                """ + cardStatusClause + cardTypeClause + cardUpdatedAfterClause + cardUpdatedBeforeClause + """
+                ),
                 semantic_ranked as (
                     select
                         card_id,
                         row_number() over (order by semantic_distance asc, card_id) as semantic_rank
-                    from semantic_matches
+                    from semantic_filtered
                 ),
                 text_matches as (
                     select
@@ -116,7 +124,7 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     from cards c
                     join users u on u.id = c.user_fk
                     where u.user_id = ?
-                """ + statusClause + cardTypeClause + updatedAfterClause + updatedBeforeClause + """
+                """ + cardStatusClause + cardTypeClause + cardUpdatedAfterClause + cardUpdatedBeforeClause + """
                       and to_tsvector(
                             'english',
                             coalesce(c.title, '') || ' ' ||
@@ -164,12 +172,15 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
                     c.updated_at desc
                 limit ?
                 offset ?
-                """;
+                """).formatted(halfvecType, halfvecType, halfvecType, halfvecType);
 
         List<Object> parameters = new ArrayList<>();
         parameters.add(queryVector);
         parameters.add(userId);
         parameters.add(embeddingModel);
+        parameters.add(queryVector);
+        parameters.add(semanticProbeLimit);
+        parameters.add(embeddingProperties.maxSemanticDistance());
         if (status != null) {
             parameters.add(status.name());
         }
@@ -182,9 +193,6 @@ public class CardSearchRepositoryImpl implements CardSearchRepository {
         if (updatedBefore != null) {
             parameters.add(Timestamp.from(updatedBefore));
         }
-        parameters.add(queryVector);
-        parameters.add(semanticProbeLimit);
-        parameters.add(embeddingProperties.maxSemanticDistance());
         parameters.add(query);
         parameters.add(userId);
         if (status != null) {

@@ -24,6 +24,7 @@ create table if not exists cards (
     priority varchar(255) not null,
     due_date date,
     source_message_id uuid,
+    constraint uk_cards_id_user_fk unique (id, user_fk),
     constraint cards_card_type_check check (card_type in ('TASK', 'REMINDER', 'NOTE', 'CONTACT', 'DECISION', 'FOLLOW_UP', 'ALERT')),
     constraint cards_status_check check (status in ('OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'ARCHIVED')),
     constraint cards_priority_check check (priority in ('LOW', 'MEDIUM', 'HIGH', 'URGENT'))
@@ -33,13 +34,15 @@ create table if not exists card_embeddings (
     id uuid primary key,
     created_at timestamptz not null,
     updated_at timestamptz not null,
-    card_fk uuid not null references cards(id),
+    card_fk uuid not null,
+    user_fk bigint not null references users(id),
     embedding_model varchar(255) not null,
     chunking_strategy varchar(255) not null,
     chunk_index integer not null,
     chunk_type varchar(255) not null,
     chunk_text text not null,
     embedding_vector vector(3072) not null,
+    constraint fk_card_embeddings_card_owner foreign key (card_fk, user_fk) references cards(id, user_fk),
     constraint card_embeddings_chunk_type_check check (chunk_type in ('SUMMARY', 'CONTENT'))
 );
 
@@ -114,6 +117,12 @@ create index if not exists idx_cards_search
 create index if not exists idx_card_embeddings_card_model
     on card_embeddings (card_fk, embedding_model);
 
+create index if not exists idx_card_embeddings_user_model_card
+    on card_embeddings (user_fk, embedding_model, card_fk);
+
+create index if not exists idx_card_embeddings_vector_cosine
+    on card_embeddings using hnsw ((embedding_vector::halfvec(3072)) halfvec_cosine_ops);
+
 create index if not exists idx_messages_status_ingested_at
     on messages (status, ingested_at asc);
 
@@ -122,6 +131,12 @@ create index if not exists idx_messages_user_ingested_at
 
 create index if not exists idx_messages_user_status_ingested_at
     on messages (user_fk, status, ingested_at desc);
+
+create index if not exists idx_messages_user_source_service_ingested_at
+    on messages (user_fk, source_service, ingested_at desc);
+
+create index if not exists idx_messages_user_message_type_ingested_at
+    on messages (user_fk, message_type, ingested_at desc);
 
 create index if not exists idx_messages_search
     on messages using gin (
@@ -133,3 +148,9 @@ create index if not exists idx_messages_search
             coalesce(message_type, '')
         )
     );
+
+create index if not exists idx_cards_user_card_type_updated_at
+    on cards (user_fk, card_type, updated_at desc);
+
+create index if not exists idx_cards_user_status_card_type_updated_at
+    on cards (user_fk, status, card_type, updated_at desc);
