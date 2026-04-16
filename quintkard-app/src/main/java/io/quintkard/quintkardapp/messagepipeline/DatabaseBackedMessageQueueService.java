@@ -3,7 +3,6 @@ package io.quintkard.quintkardapp.messagepipeline;
 import io.quintkard.quintkardapp.config.MessageQueueProperties;
 import io.quintkard.quintkardapp.logging.LogContext;
 import io.quintkard.quintkardapp.message.Message;
-import io.quintkard.quintkardapp.message.MessageRepository;
 import io.quintkard.quintkardapp.message.MessageStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +29,13 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
 
     private final int batchSize;
     private final MessageProcessor messageProcessor;
-    private final MessageRepository messageRepository;
+    private final InternalMessageQueueRepository messageQueueRepository;
     private final ThreadPoolTaskExecutor taskExecutor;
     private final TransactionTemplate transactionTemplate;
     private final AtomicBoolean workerRunning = new AtomicBoolean(false);
 
     public DatabaseBackedMessageQueueService(
-        MessageRepository messageRepository,
+        InternalMessageQueueRepository messageQueueRepository,
         MessageProcessor messageProcessor,
         PlatformTransactionManager transactionManager,
         @Qualifier("messageQueueTaskExecutor") ThreadPoolTaskExecutor taskExecutor,
@@ -44,7 +43,7 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
     ) {
         this.batchSize = messageQueueProperties.getBatchSize();
         this.messageProcessor = messageProcessor;
-        this.messageRepository = messageRepository;
+        this.messageQueueRepository = messageQueueRepository;
         this.taskExecutor = taskExecutor;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -82,18 +81,18 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
 
     private boolean hasPendingMessages() {
         return transactionTemplate.execute(
-            status -> messageRepository.existsByStatus(MessageStatus.PENDING)
+            status -> messageQueueRepository.existsByStatus(MessageStatus.PENDING)
         );
     }
 
     private List<Message> claimPendingMessages() {
         return transactionTemplate.execute(status -> {
-            List<UUID> ids = messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), batchSize);
+            List<UUID> ids = messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), batchSize);
             if (ids == null || ids.isEmpty()) {
                 return List.of();
             }
 
-            List<Message> fetchedMessages = messageRepository.findAllByIdIn(ids);
+            List<Message> fetchedMessages = messageQueueRepository.findAllByIdIn(ids);
             Map<UUID, Message> messagesById = new HashMap<>();
             for (Message message : fetchedMessages) {
                 messagesById.put(message.getId(), message);
@@ -109,7 +108,7 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
                 claimedMessages.add(message);
             }
 
-            return messageRepository.saveAll(claimedMessages);
+            return toList(messageQueueRepository.saveAll(claimedMessages));
         });
     }
 
@@ -121,7 +120,7 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
             logger.info("Message processing started");
             try {
                 transactionTemplate.executeWithoutResult(status -> {
-                    Message managedMessage = messageRepository.findById(message.getId())
+                    Message managedMessage = messageQueueRepository.findById(message.getId())
                         .orElseThrow(() -> new NoSuchElementException("Message not found: " + message.getId()));
 
                     try (AutoCloseable userContext = LogContext.with("userId", managedMessage.getUser().getUserId())) {
@@ -143,7 +142,7 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
 
     private void updateMessageStatus(UUID messageId, MessageStatus messageStatus) {
         transactionTemplate.executeWithoutResult(status -> {
-            Message message = messageRepository.findById(messageId)
+            Message message = messageQueueRepository.findById(messageId)
                 .orElseThrow(() -> new NoSuchElementException("Message not found: " + messageId));
 
             if (messageStatus == MessageStatus.SUCCESS) {
@@ -160,5 +159,13 @@ public class DatabaseBackedMessageQueueService implements MessageQueueService {
                 message.markProcessing();
             }
         });
+    }
+
+    private List<Message> toList(Iterable<Message> messages) {
+        List<Message> values = new ArrayList<>();
+        for (Message message : messages) {
+            values.add(message);
+        }
+        return values;
     }
 }
