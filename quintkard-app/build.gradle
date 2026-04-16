@@ -80,6 +80,13 @@ tasks.register('integrationTest', Test) {
     shouldRunAfter tasks.named('test')
 }
 
+tasks.register('runFlywayMigrate', JavaExec) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = 'Runs Flyway migrations using the custom migration runner.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.quintkard.quintkardapp.db.FlywayMigrationRunner'
+}
+
 tasks.named('check') {
     dependsOn tasks.named('integrationTest')
 }
