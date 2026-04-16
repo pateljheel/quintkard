@@ -480,6 +480,80 @@ Extension points:
 - new tables and indexes via new Flyway migrations
 - additional projections or custom repositories for database-specific workloads
 
+## Database Indexes
+
+The current schema uses targeted indexes to support the main runtime paths rather than trying to index every column combination.
+
+### Cards
+
+Card listing and filtered views are primarily supported by:
+
+- `idx_cards_user_updated_at`
+- `idx_cards_user_status_updated_at`
+- `idx_cards_user_card_type_updated_at`
+- `idx_cards_user_status_card_type_updated_at`
+
+These indexes optimize the most common access pattern for cards:
+
+- first narrow by owning user
+- then optionally narrow by status or card type
+- finally return rows ordered by recent updates
+
+This matches the behavior of specification-based card listing and keeps ordinary filtered browsing efficient without requiring a custom query for each filter combination.
+
+Card full-text search is supported by:
+
+- `idx_cards_search`
+
+This is a PostgreSQL GIN index over the combined `title`, `summary`, and `content` text. It supports the text side of hybrid card search and avoids full table scans for `websearch_to_tsquery(...)` predicates.
+
+### Card Embeddings
+
+Semantic search and embedding maintenance use:
+
+- `idx_card_embeddings_card_model`
+- `idx_card_embeddings_user_model_card`
+- `idx_card_embeddings_vector_cosine`
+
+These serve different purposes:
+
+- `idx_card_embeddings_card_model` supports maintenance operations such as replacing or deleting embeddings for a given card and model.
+- `idx_card_embeddings_user_model_card` supports tenant-aware narrowing before or around semantic retrieval by making user and model ownership cheap to filter.
+- `idx_card_embeddings_vector_cosine` is the ANN index used for vector similarity search. It is defined on a `halfvec(3072)` expression because pgvector does not support ANN indexing directly on the current 3072-dimensional `vector` column with the chosen operators.
+
+The current semantic search query casts both stored embeddings and the query embedding to the same `halfvec` representation so PostgreSQL can use that ANN path.
+
+### Messages
+
+Message queue processing and user-facing message listing are supported by:
+
+- `idx_messages_status_ingested_at`
+- `idx_messages_user_ingested_at`
+- `idx_messages_user_status_ingested_at`
+- `idx_messages_user_source_service_ingested_at`
+- `idx_messages_user_message_type_ingested_at`
+
+These indexes reflect two distinct workloads:
+
+- queue workers claim global pending work ordered by ingestion time
+- users browse and filter only their own messages, often by status, source service, message type, and recency
+
+Message full-text search is supported by:
+
+- `idx_messages_search`
+
+This GIN index covers the combined searchable message text and supports the custom SQL search path in `MessageSearchRepositoryImpl`.
+
+### Current Tradeoffs
+
+The current index set is appropriate for the first release, but there are some known limits:
+
+- the ANN vector index is global rather than tenant-partitioned
+- full-text indexes are also global rather than per-tenant
+- deeper pagination still becomes more expensive because search probe limits and offsets grow with page depth
+
+That means the current design is optimized for correctness and reasonable performance at MVP scale, not for very large tenant counts or very large global embedding volume. If those become real constraints, the next steps would likely be partitioning, more selective vector indexing strategies, or a dedicated vector-search system.
+
 ## Security
 
 Security wiring lives in:
