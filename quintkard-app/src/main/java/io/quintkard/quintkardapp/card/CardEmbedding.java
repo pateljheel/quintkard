@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
@@ -24,7 +25,10 @@ public class CardEmbedding extends AuditableEntity {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "card_fk", nullable = false)
+    @JoinColumns({
+            @JoinColumn(name = "card_fk", referencedColumnName = "id", nullable = false),
+            @JoinColumn(name = "user_fk", referencedColumnName = "user_fk", nullable = false)
+    })
     private Card card;
 
     @Column(nullable = false)

@@ -130,9 +130,11 @@ public class CardServiceImpl implements CardService {
                 filter.updatedAfter(),
                 filter.updatedBefore()
         );
+        User user = getUser(filter.userId());
 
         return cardRepository.searchHybridSummaries(
                 normalizedFilter,
+                user.getId(),
                 embeddingProperties.model(),
                 embeddingService.embed(normalizedQuery),
                 pageable

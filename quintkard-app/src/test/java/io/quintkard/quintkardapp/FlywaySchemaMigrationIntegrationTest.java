@@ -43,7 +43,6 @@ class FlywaySchemaMigrationIntegrationTest {
     @Test
     void migrateCreatesSchemaAndIndexes() {
         assertEquals(1, count("select count(*) from flyway_schema_history where version = '1' and success = true"));
-        assertEquals(1, count("select count(*) from flyway_schema_history where version = '2' and success = true"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'users'"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'cards'"));
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'card_embeddings'"));
@@ -53,6 +52,8 @@ class FlywaySchemaMigrationIntegrationTest {
         assertEquals(1, count("select count(*) from information_schema.tables where table_name = 'orchestration_active_agents'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_cards_search'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_cards_user_card_type_updated_at'"));
+        assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_card_embeddings_user_model_card'"));
+        assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_card_embeddings_vector_cosine'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_search'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_status_ingested_at'"));
         assertEquals(1, count("select count(*) from pg_indexes where indexname = 'idx_messages_user_source_service_ingested_at'"));
@@ -68,6 +69,42 @@ class FlywaySchemaMigrationIntegrationTest {
                 String.class
         );
         assertEquals("vector", dataType);
+
+        String embeddingUserFkType = jdbcTemplate.queryForObject(
+                """
+                select data_type
+                from information_schema.columns
+                where table_name = 'card_embeddings'
+                  and column_name = 'user_fk'
+                """,
+                String.class
+        );
+        assertEquals("bigint", embeddingUserFkType);
+
+        assertEquals(
+                1,
+                count(
+                        """
+                        select count(*)
+                        from information_schema.table_constraints
+                        where table_name = 'cards'
+                          and constraint_name = 'uk_cards_id_user_fk'
+                          and constraint_type = 'UNIQUE'
+                        """
+                )
+        );
+        assertEquals(
+                1,
+                count(
+                        """
+                        select count(*)
+                        from information_schema.table_constraints
+                        where table_name = 'card_embeddings'
+                          and constraint_name = 'fk_card_embeddings_card_owner'
+                          and constraint_type = 'FOREIGN KEY'
+                        """
+                )
+        );
 
         String extensionName = jdbcTemplate.queryForObject(
                 "select extname from pg_extension where extname = 'vector'",

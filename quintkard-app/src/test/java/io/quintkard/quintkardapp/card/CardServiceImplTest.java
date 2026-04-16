@@ -126,8 +126,11 @@ class CardServiceImplTest {
     @Test
     void listCardsWithQueryEmbedsTextAndUsesHybridSearch() {
         float[] embedding = new float[] {0.1f, 0.2f};
+        User user = new User("admin", "Admin", "admin@example.com", "hash", false);
+        ReflectionTestUtils.setField(user, "id", 1L);
         @SuppressWarnings("unchecked")
         Slice<CardSummaryProjection> expectedSlice = new SliceImpl<>(List.of(mock(CardSummaryProjection.class)));
+        when(userRepository.findByUserId("admin")).thenReturn(Optional.of(user));
         when(embeddingService.embed("invoice follow up")).thenReturn(embedding);
         when(cardRepository.searchHybridSummaries(
                 eq(new CardFilter(
@@ -138,6 +141,7 @@ class CardServiceImplTest {
                         Instant.parse("2026-04-05T00:00:00Z"),
                         Instant.parse("2026-04-06T00:00:00Z")
                 )),
+                eq(1L),
                 eq("gemini-embedding-001"),
                 eq(embedding),
                 any(PageRequest.class)
@@ -168,6 +172,7 @@ class CardServiceImplTest {
                         Instant.parse("2026-04-05T00:00:00Z"),
                         Instant.parse("2026-04-06T00:00:00Z")
                 ),
+                1L,
                 "gemini-embedding-001",
                 embedding,
                 PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "updatedAt"))

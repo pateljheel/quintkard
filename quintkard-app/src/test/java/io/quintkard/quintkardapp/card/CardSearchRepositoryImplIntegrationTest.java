@@ -72,13 +72,15 @@ class CardSearchRepositoryImplIntegrationTest {
                     due_date date,
                     source_message_id uuid,
                     created_at timestamptz not null,
-                    updated_at timestamptz not null
+                    updated_at timestamptz not null,
+                    constraint uk_cards_id_user_fk unique (id, user_fk)
                 )
                 """);
         jdbcTemplate.execute("""
                 create table card_embeddings (
                     id uuid primary key,
-                    card_fk uuid not null references cards(id),
+                    card_fk uuid not null,
+                    user_fk bigint not null references users(id),
                     chunk_index integer not null,
                     chunk_text text not null,
                     chunk_type varchar(255) not null,
@@ -86,7 +88,8 @@ class CardSearchRepositoryImplIntegrationTest {
                     embedding_model varchar(255) not null,
                     embedding_vector vector(3) not null,
                     created_at timestamptz not null,
-                    updated_at timestamptz not null
+                    updated_at timestamptz not null,
+                    constraint fk_card_embeddings_card_owner foreign key (card_fk, user_fk) references cards(id, user_fk)
                 )
                 """);
     }
@@ -96,14 +99,15 @@ class CardSearchRepositoryImplIntegrationTest {
         insertUser(1L, "admin");
         insertUser(2L, "other");
         UUID adminOpen = insertCard(1L, "Invoice follow up", "August invoice", "Need vendor response", CardStatus.OPEN, Instant.parse("2026-04-05T00:00:00Z"));
-        insertEmbedding(adminOpen, "[1,0,0]");
+        insertEmbedding(adminOpen, 1L, "[1,0,0]");
         UUID adminDone = insertCard(1L, "Invoice archive", "Old invoice", "Already resolved", CardStatus.DONE, Instant.parse("2026-04-05T00:05:00Z"));
-        insertEmbedding(adminDone, "[1,0,0]");
+        insertEmbedding(adminDone, 1L, "[1,0,0]");
         UUID otherOpen = insertCard(2L, "Invoice for other user", "Other invoice", "Other user content", CardStatus.OPEN, Instant.parse("2026-04-05T00:10:00Z"));
-        insertEmbedding(otherOpen, "[1,0,0]");
+        insertEmbedding(otherOpen, 2L, "[1,0,0]");
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", CardStatus.OPEN, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -117,12 +121,13 @@ class CardSearchRepositoryImplIntegrationTest {
     void searchHybridSummariesIncludesSemanticOnlyMatchesWithinThreshold() {
         insertUser(1L, "admin");
         UUID textCard = insertCard(1L, "Invoice follow up", "Need action", "Vendor correction pending", CardStatus.OPEN, Instant.parse("2026-04-05T00:00:00Z"));
-        insertEmbedding(textCard, "[0,1,0]");
+        insertEmbedding(textCard, 1L, "[0,1,0]");
         UUID semanticCard = insertCard(1L, "Account update", "Billing review", "Review customer account changes", CardStatus.OPEN, Instant.parse("2026-04-05T01:00:00Z"));
-        insertEmbedding(semanticCard, "[1,0,0]");
+        insertEmbedding(semanticCard, 1L, "[1,0,0]");
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", null, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -138,12 +143,13 @@ class CardSearchRepositoryImplIntegrationTest {
     void searchHybridSummariesExcludesWeakSemanticMatchesOutsideThreshold() {
         insertUser(1L, "admin");
         UUID textCard = insertCard(1L, "Invoice follow up", "Need action", "Vendor correction pending", CardStatus.OPEN, Instant.parse("2026-04-05T00:00:00Z"));
-        insertEmbedding(textCard, "[0,1,0]");
+        insertEmbedding(textCard, 1L, "[0,1,0]");
         UUID weakSemanticCard = insertCard(1L, "Account update", "Billing review", "Review customer account changes", CardStatus.OPEN, Instant.parse("2026-04-05T01:00:00Z"));
-        insertEmbedding(weakSemanticCard, "[0,1,0]");
+        insertEmbedding(weakSemanticCard, 1L, "[0,1,0]");
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter("admin", "invoice", null, null, null, null),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -165,7 +171,7 @@ class CardSearchRepositoryImplIntegrationTest {
                 CardStatus.OPEN,
                 Instant.parse("2026-04-05T02:00:00Z")
         );
-        insertEmbedding(matchingCard, "[1,0,0]");
+        insertEmbedding(matchingCard, 1L, "[1,0,0]");
         UUID wrongTypeCard = insertCard(
                 1L,
                 "Invoice note",
@@ -175,7 +181,7 @@ class CardSearchRepositoryImplIntegrationTest {
                 CardStatus.OPEN,
                 Instant.parse("2026-04-05T02:05:00Z")
         );
-        insertEmbedding(wrongTypeCard, "[1,0,0]");
+        insertEmbedding(wrongTypeCard, 1L, "[1,0,0]");
         UUID tooOldCard = insertCard(
                 1L,
                 "Invoice archive",
@@ -185,7 +191,7 @@ class CardSearchRepositoryImplIntegrationTest {
                 CardStatus.OPEN,
                 Instant.parse("2026-04-05T00:05:00Z")
         );
-        insertEmbedding(tooOldCard, "[1,0,0]");
+        insertEmbedding(tooOldCard, 1L, "[1,0,0]");
 
         Slice<CardSummaryProjection> result = repository.searchHybridSummaries(
                 new CardFilter(
@@ -196,6 +202,7 @@ class CardSearchRepositoryImplIntegrationTest {
                         Instant.parse("2026-04-05T01:00:00Z"),
                         Instant.parse("2026-04-05T03:00:00Z")
                 ),
+                1L,
                 "gemini-embedding-001",
                 new float[] {1f, 0f, 0f},
                 PageRequest.of(0, 10)
@@ -250,15 +257,16 @@ class CardSearchRepositoryImplIntegrationTest {
         return id;
     }
 
-    private void insertEmbedding(UUID cardId, String vectorLiteral) {
+    private void insertEmbedding(UUID cardId, long userFk, String vectorLiteral) {
         Timestamp now = Timestamp.from(Instant.parse("2026-04-05T00:00:00Z"));
         jdbcTemplate.update(
                 """
-                insert into card_embeddings (id, card_fk, chunk_index, chunk_text, chunk_type, chunking_strategy, embedding_model, embedding_vector, created_at, updated_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?::vector, ?, ?)
+                insert into card_embeddings (id, card_fk, user_fk, chunk_index, chunk_text, chunk_type, chunking_strategy, embedding_model, embedding_vector, created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?::vector, ?, ?)
                 """,
                 UUID.randomUUID(),
                 cardId,
+                userFk,
                 0,
                 "chunk",
                 "CONTENT",
