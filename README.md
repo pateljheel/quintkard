@@ -4,6 +4,9 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=pateljheel_quintkard&metric=coverage)](https://sonarcloud.io/summary/new_code?id=pateljheel_quintkard)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 
+
+<img src="./docs/assets/quintkard-arch.png" style="border-radius: 5px;">
+
 Quintkard is a local-first workflow assistant for turning inbound messages into actionable cards. It combines a Spring Boot backend, a Next.js UI, database-backed message processing, AI-driven orchestration, agent tools, and hybrid card search.
 
 The system is designed around user-level multi-tenancy: cards, messages, agents, orchestrator settings, and AI tool execution are intended to be scoped per user. At the moment, local usage and the main verified flow are still centered on the seeded `admin` user, so broader multi-user behavior should be treated as design intent rather than fully verified runtime coverage.

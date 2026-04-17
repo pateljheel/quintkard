@@ -31,15 +31,30 @@ public class User extends AuditableEntity {
     @Column(name = "redaction_enabled", nullable = false)
     private boolean redactionEnabled;
 
+    @Column(name = "sample_data_initialized", nullable = false)
+    private boolean sampleDataInitialized;
+
     protected User() {
     }
 
     public User(String userId, String displayName, String email, String passwordHash, boolean redactionEnabled) {
+        this(userId, displayName, email, passwordHash, redactionEnabled, false);
+    }
+
+    public User(
+            String userId,
+            String displayName,
+            String email,
+            String passwordHash,
+            boolean redactionEnabled,
+            boolean sampleDataInitialized
+    ) {
         this.userId = userId;
         this.displayName = displayName;
         this.email = email;
         this.passwordHash = passwordHash;
         this.redactionEnabled = redactionEnabled;
+        this.sampleDataInitialized = sampleDataInitialized;
     }
     public Long getId() {
         return id;
@@ -65,6 +80,10 @@ public class User extends AuditableEntity {
         return redactionEnabled;
     }
 
+    public boolean isSampleDataInitialized() {
+        return sampleDataInitialized;
+    }
+
     public void updateProfile(String displayName, String email) {
         this.displayName = displayName;
         this.email = email;
@@ -76,5 +95,9 @@ public class User extends AuditableEntity {
 
     public void updateRedactionEnabled(boolean redactionEnabled) {
         this.redactionEnabled = redactionEnabled;
+    }
+
+    public void markSampleDataInitialized() {
+        this.sampleDataInitialized = true;
     }
 }
