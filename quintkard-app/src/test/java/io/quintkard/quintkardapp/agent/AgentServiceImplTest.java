@@ -270,6 +270,66 @@ class AgentServiceImplTest {
     }
 
     @Test
+    void updateAgentRejectsMissingName() {
+        UUID agentId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "   ",
+                        "Description",
+                        "Prompt",
+                        "gemini-2.5-flash",
+                        0.7
+                ))
+        );
+
+        assertEquals("Agent name is required", exception.getMessage());
+        verifyNoInteractions(agentConfigRepository, userRepository);
+    }
+
+    @Test
+    void updateAgentRejectsUnsupportedModel() {
+        UUID agentId = UUID.randomUUID();
+
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "Name",
+                        "Description",
+                        "Prompt",
+                        "unknown-model",
+                        0.7
+                ))
+        );
+
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
+        verifyNoInteractions(agentConfigRepository, userRepository);
+    }
+
+    @Test
+    void updateAgentRejectsTemperatureOutsideModelRange() {
+        UUID agentId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "Name",
+                        "Description",
+                        "Prompt",
+                        "gpt-5.1-codex-mini",
+                        1.5
+                ))
+        );
+
+        assertEquals(
+                "Temperature 1.50 is invalid for model gpt-5.1-codex-mini. Supported range: 0.0 to 1.2",
+                exception.getMessage()
+        );
+        verifyNoInteractions(agentConfigRepository, userRepository);
+    }
+
+    @Test
     void updateAgentRejectsDuplicateNameFromDifferentAgent() {
         UUID agentId = UUID.randomUUID();
         AgentConfig agent = agent("admin", agentId, "Finance Agent");
