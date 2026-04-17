@@ -18,5 +18,7 @@ public interface MessageRepository extends Repository<Message, UUID>, JpaSpecifi
 
     Optional<Message> findByIdAndUserUserId(UUID id, String userId);
 
+    boolean existsByUser_UserIdAndExternalMessageId(String userId, String externalMessageId);
+
     void delete(Message message);
 }

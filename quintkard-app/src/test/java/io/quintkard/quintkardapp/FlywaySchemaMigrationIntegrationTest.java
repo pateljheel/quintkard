@@ -81,6 +81,17 @@ class FlywaySchemaMigrationIntegrationTest {
         );
         assertEquals("bigint", embeddingUserFkType);
 
+        String sampleDataInitializedType = jdbcTemplate.queryForObject(
+                """
+                select data_type
+                from information_schema.columns
+                where table_name = 'users'
+                  and column_name = 'sample_data_initialized'
+                """,
+                String.class
+        );
+        assertEquals("boolean", sampleDataInitializedType);
+
         assertEquals(
                 1,
                 count(

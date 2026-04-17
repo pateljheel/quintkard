@@ -8,7 +8,8 @@ create table if not exists users (
     display_name varchar(255) not null,
     email varchar(255) not null,
     password_hash varchar(255) not null,
-    redaction_enabled boolean not null
+    redaction_enabled boolean not null,
+    sample_data_initialized boolean not null default false
 );
 
 create table if not exists cards (
