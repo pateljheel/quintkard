@@ -304,6 +304,37 @@ Extension point:
   - providing provider beans
   - teaching the options factory how to build provider-specific options
 
+Operational concern:
+
+- external AI providers control model availability, quotas, pricing, and deprecation timelines
+
+If an external embedding model is discontinued:
+
+1. Add and validate a replacement embedding model in configuration.
+2. Confirm the replacement model's vector dimensions and distance behavior.
+3. If dimensions change, add a Flyway migration to update the `card_embeddings.embedding_vector` column type and recreate the ANN index with the correct dimension.
+4. Update any query-side casts or assumptions that depend on the embedding dimension or representation.
+5. Keep the old embeddings readable until reindex is complete if a rolling migration is needed.
+6. Re-embed all existing cards with the new model.
+7. Rebuild or refresh any vector indexes after the re-embedding pass.
+8. Switch search and write paths fully to the new model only after backfill succeeds.
+9. Remove the old model from configuration and any maintenance paths after validation.
+
+Important notes:
+
+- embedding migration is not just a config change; it is a data migration and often an index migration too
+- semantic ranking may shift after a model change, so search relevance should be re-evaluated
+- if dimensions or vector operators change, the database schema and query plan may also need to change
+- cards themselves do not store the model name, but `card_embeddings.embedding_model` does, which is what makes staged migration possible
+
+Recommended production approach:
+
+- treat embedding model changes as explicit rollout projects
+- keep reindexing idempotent and resumable
+- run backfill asynchronously rather than on request paths
+- monitor reindex progress, search latency, and relevance before cutting over
+- document provider-specific exit paths for both chat and embeddings before depending on a model in production
+
 ### Memory behavior
 
 Memory integration:
@@ -923,18 +954,23 @@ What is not yet verified:
 Current behavior:
 
 - orchestration and agent execution depend on external AI providers
+- embeddings also depend on an external provider and model lifecycle
 
 Potential concerns:
 
 - provider latency directly impacts queue drain rate
 - provider outages or rate limits can reduce or stall processing throughput
 - long-tail AI response times can amplify worker occupancy
+- provider-side model retirement can force emergency embedding migration work
+- a provider can change default behavior, quality, quotas, or supported dimensions over time
 
 What is not yet verified:
 
 - throughput under real provider latency variance
 - resilience under provider throttling or intermittent failures
 - whether additional circuit breaking, work shedding, or retry shaping is needed
+- how quickly the system can be re-embedded and reindexed after an embedding model change
+- what rollback path is acceptable if a replacement model materially degrades retrieval quality
 
 ### 9. Logging volume
 

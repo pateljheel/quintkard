@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import io.quintkard.quintkardapp.agent.AgentConfig;
 import io.quintkard.quintkardapp.agent.AgentConfigRepository;
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
 import java.util.List;
@@ -35,7 +36,12 @@ class OrchestratorServiceImplTest {
         agentRepository = mock(AgentConfigRepository.class);
         orchestratorConfigRepository = mock(OrchestratorConfigRepository.class);
         userRepository = mock(UserRepository.class);
-        service = new OrchestratorServiceImpl(agentRepository, orchestratorConfigRepository, userRepository);
+        service = new OrchestratorServiceImpl(
+                agentRepository,
+                new AiModelCatalog(),
+                orchestratorConfigRepository,
+                userRepository
+        );
     }
 
     @Test
@@ -181,6 +187,22 @@ class OrchestratorServiceImplTest {
     }
 
     @Test
+    void updateConfigRejectsUnsupportedRoutingModel() {
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> service.updateConfig("admin", new OrchestratorConfigRequest(
+                        null,
+                        null,
+                        "Route",
+                        "unknown-model",
+                        List.of()
+                ))
+        );
+
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
+    }
+
+    @Test
     void updateConfigRejectsFilteringPromptWithoutFilteringModel() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
@@ -194,6 +216,22 @@ class OrchestratorServiceImplTest {
         );
 
         assertEquals("Filtering model is required when filtering prompt is provided", exception.getMessage());
+    }
+
+    @Test
+    void updateConfigRejectsUnsupportedFilteringModel() {
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> service.updateConfig("admin", new OrchestratorConfigRequest(
+                        "Filter",
+                        "unknown-model",
+                        "Route",
+                        "gemini-2.5-flash",
+                        List.of()
+                ))
+        );
+
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
     }
 
     @Test

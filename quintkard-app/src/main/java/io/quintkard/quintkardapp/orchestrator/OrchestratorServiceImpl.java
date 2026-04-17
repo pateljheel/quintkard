@@ -2,6 +2,7 @@ package io.quintkard.quintkardapp.orchestrator;
 
 import io.quintkard.quintkardapp.agent.AgentConfig;
 import io.quintkard.quintkardapp.agent.AgentConfigRepository;
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -13,15 +14,18 @@ import java.util.*;
 public class OrchestratorServiceImpl implements OrchestratorService {
 
     private final AgentConfigRepository agentRepository;
+    private final AiModelCatalog modelCatalog;
     private final OrchestratorConfigRepository orchestratorConfigRepository;
     private final UserRepository userRepository;
 
     public OrchestratorServiceImpl(
         AgentConfigRepository agentRepository,
+        AiModelCatalog modelCatalog,
         OrchestratorConfigRepository orchestratorConfigRepository,
         UserRepository userRepository
     ) {
         this.agentRepository = agentRepository;
+        this.modelCatalog = modelCatalog;
         this.orchestratorConfigRepository = orchestratorConfigRepository;
         this.userRepository = userRepository;
     }
@@ -60,6 +64,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
         if (request.routingModel() == null || request.routingModel().isBlank()) {
             throw new IllegalArgumentException("Routing model is required");
         }
+        modelCatalog.getModel(request.routingModel().trim());
         if (request.activeAgentIds() == null) {
             throw new IllegalArgumentException("Active agent IDs are required");
         }
@@ -68,6 +73,7 @@ public class OrchestratorServiceImpl implements OrchestratorService {
             if (request.filteringModel() == null || request.filteringModel().isBlank()) {
                 throw new IllegalArgumentException("Filtering model is required when filtering prompt is provided");
             }
+            modelCatalog.getModel(request.filteringModel().trim());
         }
     }
 

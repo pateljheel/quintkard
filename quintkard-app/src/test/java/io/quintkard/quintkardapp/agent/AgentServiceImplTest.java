@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
 import java.util.List;
@@ -32,7 +32,7 @@ class AgentServiceImplTest {
     void setUp() {
         agentConfigRepository = mock(AgentConfigRepository.class);
         userRepository = mock(UserRepository.class);
-        agentService = new AgentServiceImpl(agentConfigRepository, new AgentModelCatalog(), userRepository);
+        agentService = new AgentServiceImpl(agentConfigRepository, new AiModelCatalog(), userRepository);
     }
 
     @Test
@@ -145,7 +145,7 @@ class AgentServiceImplTest {
                 ))
         );
 
-        assertEquals("Unsupported agent model: unknown-model", exception.getMessage());
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
     }
 
     @Test
@@ -267,6 +267,66 @@ class AgentServiceImplTest {
         ));
 
         assertSame(agent, updated);
+    }
+
+    @Test
+    void updateAgentRejectsMissingName() {
+        UUID agentId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "   ",
+                        "Description",
+                        "Prompt",
+                        "gemini-2.5-flash",
+                        0.7
+                ))
+        );
+
+        assertEquals("Agent name is required", exception.getMessage());
+        verifyNoInteractions(agentConfigRepository, userRepository);
+    }
+
+    @Test
+    void updateAgentRejectsUnsupportedModel() {
+        UUID agentId = UUID.randomUUID();
+
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "Name",
+                        "Description",
+                        "Prompt",
+                        "unknown-model",
+                        0.7
+                ))
+        );
+
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
+        verifyNoInteractions(agentConfigRepository, userRepository);
+    }
+
+    @Test
+    void updateAgentRejectsTemperatureOutsideModelRange() {
+        UUID agentId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> agentService.updateAgent("admin", agentId, new AgentConfigRequest(
+                        "Name",
+                        "Description",
+                        "Prompt",
+                        "gpt-5.1-codex-mini",
+                        1.5
+                ))
+        );
+
+        assertEquals(
+                "Temperature 1.50 is invalid for model gpt-5.1-codex-mini. Supported range: 0.0 to 1.2",
+                exception.getMessage()
+        );
+        verifyNoInteractions(agentConfigRepository, userRepository);
     }
 
     @Test

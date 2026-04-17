@@ -9,16 +9,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class DefaultAiChatModelRegistry implements AiChatModelRegistry {
 
-    private final AiModelCatalogProperties modelCatalogProperties;
+    private final AiModelCatalog modelCatalog;
     private final ObjectProvider<GoogleGenAiChatModel> googleChatModelProvider;
     private final ObjectProvider<OpenAiChatModel> openAiChatModelProvider;
 
     public DefaultAiChatModelRegistry(
-            AiModelCatalogProperties modelCatalogProperties,
+            AiModelCatalog modelCatalog,
             ObjectProvider<GoogleGenAiChatModel> googleChatModelProvider,
             ObjectProvider<OpenAiChatModel> openAiChatModelProvider
     ) {
-        this.modelCatalogProperties = modelCatalogProperties;
+        this.modelCatalog = modelCatalog;
         this.googleChatModelProvider = googleChatModelProvider;
         this.openAiChatModelProvider = openAiChatModelProvider;
     }
@@ -41,15 +41,7 @@ public class DefaultAiChatModelRegistry implements AiChatModelRegistry {
 
     @Override
     public AiProvider providerFor(String modelName) {
-        if (modelName == null || modelName.isBlank()) {
-            throw new IllegalArgumentException("AI model is required");
-        }
-
-        AiModelDefinition definition = modelCatalogProperties.getModels().get(modelName.trim());
-        if (definition == null || definition.provider() == null) {
-            throw new IllegalArgumentException("Unsupported AI model: " + modelName);
-        }
-        return definition.provider();
+        return modelCatalog.getModel(modelName).provider();
     }
 
     private ChatModel requireConfiguredModel(String modelName, String providerName, ChatModel chatModel) {

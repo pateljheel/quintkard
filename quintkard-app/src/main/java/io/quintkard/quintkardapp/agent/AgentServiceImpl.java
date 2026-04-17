@@ -1,9 +1,10 @@
 package io.quintkard.quintkardapp.agent;
 
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
+import io.quintkard.quintkardapp.aimodel.AiModelDefinition;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -15,16 +16,16 @@ public class AgentServiceImpl implements AgentService {
     private static final long MAX_AGENTS_PER_USER = 30;
 
     private final AgentConfigRepository agentConfigRepository;
-    private final AgentModelCatalog agentModelCatalog;
+    private final AiModelCatalog modelCatalog;
     private final UserRepository userRepository;
 
     public AgentServiceImpl(
             AgentConfigRepository agentConfigRepository,
-            AgentModelCatalog agentModelCatalog,
+            AiModelCatalog modelCatalog,
             UserRepository userRepository
     ) {
         this.agentConfigRepository = agentConfigRepository;
-        this.agentModelCatalog = agentModelCatalog;
+        this.modelCatalog = modelCatalog;
         this.userRepository = userRepository;
     }
 
@@ -114,7 +115,7 @@ public class AgentServiceImpl implements AgentService {
             throw new IllegalArgumentException("Agent model is required");
         }
 
-        AgentModelConfigResponse modelConfig = agentModelCatalog.getModel(request.model().trim());
+        AiModelDefinition modelConfig = modelCatalog.getModel(request.model().trim());
         if (request.temperature() < modelConfig.minTemperature()
                 || request.temperature() > modelConfig.maxTemperature()) {
             throw new IllegalArgumentException(
