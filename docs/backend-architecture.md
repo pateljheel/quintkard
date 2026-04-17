@@ -152,6 +152,16 @@ Related repository methods are therefore intentionally not user-scoped:
 
 User scope is reintroduced when a claimed message is processed because the message itself carries its owning user.
 
+Repository boundary note:
+
+- queue-facing data access is intentionally separated into [`InternalMessageQueueRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/messagepipeline/InternalMessageQueueRepository.java)
+- user-facing message CRUD/search stays on [`MessageRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/message/MessageRepository.java)
+
+Why:
+
+- it prevents queue infrastructure methods from leaking into normal user-facing services
+- it makes trusted cross-tenant access explicit in code review and architecture tests
+
 ### 4. Orchestration flow
 
 The default message processor is:
@@ -376,6 +386,7 @@ Core classes:
 - [`CardServiceImpl.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/CardServiceImpl.java)
 - [`CardRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/CardRepository.java)
 - [`CardSearchRepositoryImpl.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/CardSearchRepositoryImpl.java)
+- [`InternalCardMaintenanceRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/InternalCardMaintenanceRepository.java)
 
 ### Filtered listing
 
@@ -389,11 +400,13 @@ Important decision point:
 
 - structured filtering uses Specifications
 - hybrid search uses a custom repository
+- user-facing card access is separated from internal card maintenance access
 
 Why:
 
 - Specifications are good for optional relational filters
 - hybrid ranking logic is too specialized for JPA abstraction
+- embedding maintenance needs one trusted unscoped lookup path, but that path should not be available to normal card services or controllers
 
 ### Hybrid search
 
@@ -427,6 +440,16 @@ Embedding/indexing classes:
 
 Cards are reindexed on create/update, which keeps semantic retrieval aligned with current content.
 
+Repository boundary note:
+
+- [`CardRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/CardRepository.java) is the user-facing repository surface for scoped card operations
+- [`InternalCardMaintenanceRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/InternalCardMaintenanceRepository.java) exists only for trusted maintenance access used by embedding reindexing
+
+Why:
+
+- the card service should only see user-scoped methods
+- maintenance code still needs a narrowly scoped internal path to reload cards by ID during reindex operations
+
 Extension points:
 
 - different chunking strategies
@@ -446,24 +469,28 @@ As with cards:
 
 - structured listing uses `MessageFilter` + `MessageSpecifications`
 - full-text search uses [`MessageSearchRepositoryImpl.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/message/MessageSearchRepositoryImpl.java)
+- queue infrastructure uses a separate internal repository surface
 
 Important decision point:
 
 - message storage is the source of truth for ingestion
 - downstream orchestration output is recorded into message details rather than replacing the original payload
+- repository boundaries distinguish user-scoped message access from trusted queue access
 
 Why:
 
 - preserves auditability
 - allows reprocessing with new prompts or models later
+- avoids mixing global queue methods into normal message service code
 
 ## Persistence and Schema Management
 
 Persistence uses:
 
-- Spring Data JPA for core entity CRUD
+- Spring Data JPA with narrowed repository interfaces for user-owned entities
 - custom repositories for advanced SQL paths
 - Flyway migrations for schema and indexing
+- explicit internal repositories where trusted cross-tenant or maintenance access is required
 
 Important decision point:
 
@@ -474,6 +501,50 @@ Why:
 - repeatable, explicit schema changes
 - safer production rollout
 - easier CI verification
+
+### Repository Surface Hardening
+
+User-owned aggregates now use narrowed repository interfaces instead of broad `JpaRepository` exposure.
+
+Current pattern:
+
+- user-facing repositories expose only the operations the application actually uses
+- trusted cross-tenant or maintenance access is moved into explicitly named internal repositories
+
+Examples:
+
+- [`MessageRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/message/MessageRepository.java)
+- [`InternalMessageQueueRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/messagepipeline/InternalMessageQueueRepository.java)
+- [`CardRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/CardRepository.java)
+- [`InternalCardMaintenanceRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/card/InternalCardMaintenanceRepository.java)
+- [`AgentConfigRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/agent/AgentConfigRepository.java)
+- [`OrchestratorConfigRepository.java`](../quintkard-app/src/main/java/io/quintkard/quintkardapp/orchestrator/OrchestratorConfigRepository.java)
+
+Important decision point:
+
+- tenant-owned repository APIs are treated as part of the security boundary
+
+Why:
+
+- broad repository defaults like `findById`, `findAll`, and `deleteById` are tenant-blind
+- removing those defaults makes it harder for future code to bypass user scoping accidentally
+- explicit internal repository names make trusted exceptions visible
+
+### Architecture Guardrails
+
+Architecture rules are enforced with ArchUnit in:
+
+- [`TenantIsolationArchitectureTest.java`](../quintkard-app/src/test/java/io/quintkard/quintkardapp/architecture/TenantIsolationArchitectureTest.java)
+
+Current guardrails enforce:
+
+- tenant-owned repositories in the main user-owned packages do not extend `JpaRepository`
+- user-facing controllers and primary user-facing services do not depend on repositories following the `Internal*Repository` pattern
+
+Why:
+
+- this turns repository-boundary decisions into executable rules rather than relying only on code review
+- it reduces the chance that future refactors accidentally reintroduce unscoped access paths
 
 Extension points:
 

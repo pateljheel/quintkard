@@ -43,7 +43,11 @@ public class MessageIngestionServiceImpl implements MessageIngestionService {
             messages.add(buildMessage(userId, envelope));
         }
 
-        return messageRepository.saveAll(messages);
+        List<Message> savedMessages = new ArrayList<>();
+        for (Message message : messageRepository.saveAll(messages)) {
+            savedMessages.add(message);
+        }
+        return savedMessages;
     }
 
     private Message buildMessage(String userId, MessageEnvelope envelope) {

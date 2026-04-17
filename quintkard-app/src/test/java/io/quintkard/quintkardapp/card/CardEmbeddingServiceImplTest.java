@@ -22,7 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class CardEmbeddingServiceImplTest {
 
-    private CardRepository cardRepository;
+    private InternalCardMaintenanceRepository cardMaintenanceRepository;
     private CardEmbeddingRepository cardEmbeddingRepository;
     private EmbeddingService embeddingService;
     private CardChunkingStrategyRegistry chunkingStrategyRegistry;
@@ -30,12 +30,12 @@ class CardEmbeddingServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        cardRepository = mock(CardRepository.class);
+        cardMaintenanceRepository = mock(InternalCardMaintenanceRepository.class);
         cardEmbeddingRepository = mock(CardEmbeddingRepository.class);
         embeddingService = mock(EmbeddingService.class);
         chunkingStrategyRegistry = mock(CardChunkingStrategyRegistry.class);
         service = new CardEmbeddingServiceImpl(
-                cardRepository,
+                cardMaintenanceRepository,
                 cardEmbeddingRepository,
                 embeddingService,
                 chunkingStrategyRegistry,
@@ -48,7 +48,7 @@ class CardEmbeddingServiceImplTest {
         UUID cardId = UUID.randomUUID();
         Card card = card(cardId);
         CardChunkingStrategy strategy = mock(CardChunkingStrategy.class);
-        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardMaintenanceRepository.findById(cardId)).thenReturn(Optional.of(card));
         when(chunkingStrategyRegistry.get("summary-and-content-v1")).thenReturn(strategy);
         when(strategy.chunk(card)).thenReturn(List.of());
 
@@ -69,7 +69,7 @@ class CardEmbeddingServiceImplTest {
                 new TextChunk(1, TextChunkType.CONTENT, "content one"),
                 new TextChunk(2, TextChunkType.CONTENT, "content two")
         );
-        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardMaintenanceRepository.findById(cardId)).thenReturn(Optional.of(card));
         when(chunkingStrategyRegistry.get("summary-and-content-v1")).thenReturn(strategy);
         when(strategy.chunk(card)).thenReturn(chunks);
         when(embeddingService.embedAll(List.of("summary", "content one")))
@@ -99,7 +99,7 @@ class CardEmbeddingServiceImplTest {
         UUID cardId = UUID.randomUUID();
         Card card = card(cardId);
         CardChunkingStrategy strategy = mock(CardChunkingStrategy.class);
-        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardMaintenanceRepository.findById(cardId)).thenReturn(Optional.of(card));
         when(chunkingStrategyRegistry.get("summary-and-content-v1")).thenReturn(strategy);
         when(strategy.chunk(card)).thenReturn(List.of(new TextChunk(0, TextChunkType.CONTENT, "content")));
         when(embeddingService.embedAll(List.of("content"))).thenReturn(List.of(new float[] {1f, 2f}));

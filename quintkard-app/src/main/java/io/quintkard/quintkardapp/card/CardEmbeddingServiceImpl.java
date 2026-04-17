@@ -13,20 +13,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CardEmbeddingServiceImpl implements CardEmbeddingService {
 
-    private final CardRepository cardRepository;
+    private final InternalCardMaintenanceRepository cardMaintenanceRepository;
     private final CardEmbeddingRepository cardEmbeddingRepository;
     private final EmbeddingService embeddingService;
     private final CardChunkingStrategyRegistry chunkingStrategyRegistry;
     private final EmbeddingProperties embeddingProperties;
 
     public CardEmbeddingServiceImpl(
-            CardRepository cardRepository,
+            InternalCardMaintenanceRepository cardMaintenanceRepository,
             CardEmbeddingRepository cardEmbeddingRepository,
             EmbeddingService embeddingService,
             CardChunkingStrategyRegistry chunkingStrategyRegistry,
             EmbeddingProperties embeddingProperties
     ) {
-        this.cardRepository = cardRepository;
+        this.cardMaintenanceRepository = cardMaintenanceRepository;
         this.cardEmbeddingRepository = cardEmbeddingRepository;
         this.embeddingService = embeddingService;
         this.chunkingStrategyRegistry = chunkingStrategyRegistry;
@@ -36,7 +36,7 @@ public class CardEmbeddingServiceImpl implements CardEmbeddingService {
     @Override
     @Transactional
     public List<CardEmbedding> reindexCard(UUID cardId) {
-        Card card = cardRepository.findById(cardId)
+        Card card = cardMaintenanceRepository.findById(cardId)
                 .orElseThrow(() -> new NoSuchElementException("Card not found: " + cardId));
 
         CardChunkingStrategy chunkingStrategy = chunkingStrategyRegistry.get(embeddingProperties.chunkingStrategy());

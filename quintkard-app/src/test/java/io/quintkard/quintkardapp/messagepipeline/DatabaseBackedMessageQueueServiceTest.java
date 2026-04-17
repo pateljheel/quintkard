@@ -14,7 +14,6 @@ import static org.mockito.Mockito.when;
 
 import io.quintkard.quintkardapp.config.MessageQueueProperties;
 import io.quintkard.quintkardapp.message.Message;
-import io.quintkard.quintkardapp.message.MessageRepository;
 import io.quintkard.quintkardapp.message.MessageStatus;
 import io.quintkard.quintkardapp.user.User;
 import java.time.Instant;
@@ -34,18 +33,18 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 
 class DatabaseBackedMessageQueueServiceTest {
 
-    private MessageRepository messageRepository;
+    private InternalMessageQueueRepository messageQueueRepository;
     private MessageProcessor messageProcessor;
     private ThreadPoolTaskExecutor taskExecutor;
     private DatabaseBackedMessageQueueService queueService;
 
     @BeforeEach
     void setUp() {
-        messageRepository = mock(MessageRepository.class);
+        messageQueueRepository = mock(InternalMessageQueueRepository.class);
         messageProcessor = mock(MessageProcessor.class);
         taskExecutor = mock(ThreadPoolTaskExecutor.class);
         queueService = new DatabaseBackedMessageQueueService(
-                messageRepository,
+                messageQueueRepository,
                 messageProcessor,
                 transactionManager(),
                 taskExecutor,
@@ -64,7 +63,7 @@ class DatabaseBackedMessageQueueServiceTest {
     @Test
     void processMessageMarksSuccessWhenProcessorCompletes() {
         Message message = message();
-        when(messageRepository.findById(message.getId()))
+        when(messageQueueRepository.findById(message.getId()))
                 .thenReturn(Optional.of(message), Optional.of(message));
 
         ReflectionTestUtils.invokeMethod(queueService, "processMessage", message);
@@ -76,7 +75,7 @@ class DatabaseBackedMessageQueueServiceTest {
     @Test
     void processMessageMarksFailedWhenProcessorThrows() {
         Message message = message();
-        when(messageRepository.findById(message.getId()))
+        when(messageQueueRepository.findById(message.getId()))
                 .thenReturn(Optional.of(message), Optional.of(message));
         doThrow(new IllegalStateException("boom")).when(messageProcessor).process(message);
 
@@ -88,14 +87,14 @@ class DatabaseBackedMessageQueueServiceTest {
 
     @Test
     void claimPendingMessagesReturnsEmptyWhenNoIdsClaimed() {
-        when(messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
+        when(messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
 
         @SuppressWarnings("unchecked")
         List<Message> claimed = ReflectionTestUtils.invokeMethod(queueService, "claimPendingMessages");
 
         assertEquals(List.of(), claimed);
-        verify(messageRepository, never()).findAllByIdIn(any());
-        verify(messageRepository, never()).saveAll(any());
+        verify(messageQueueRepository, never()).findAllByIdIn(any());
+        verify(messageQueueRepository, never()).saveAll(any());
     }
 
     @Test
@@ -104,9 +103,9 @@ class DatabaseBackedMessageQueueServiceTest {
         Message second = message(UUID.fromString("66666666-6666-6666-6666-666666666666"));
         UUID missingId = UUID.fromString("77777777-7777-7777-7777-777777777777");
         List<UUID> claimedIds = List.of(second.getId(), missingId, first.getId());
-        when(messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(claimedIds);
-        when(messageRepository.findAllByIdIn(claimedIds)).thenReturn(List.of(first, second));
-        when(messageRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(claimedIds);
+        when(messageQueueRepository.findAllByIdIn(claimedIds)).thenReturn(List.of(first, second));
+        when(messageQueueRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         @SuppressWarnings("unchecked")
         List<Message> claimed = ReflectionTestUtils.invokeMethod(queueService, "claimPendingMessages");
@@ -118,7 +117,7 @@ class DatabaseBackedMessageQueueServiceTest {
 
     @Test
     void processNextBatchReturnsZeroWhenNothingClaimed() {
-        when(messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
+        when(messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
 
         Integer processed = ReflectionTestUtils.invokeMethod(queueService, "processNextBatch");
 
@@ -130,7 +129,7 @@ class DatabaseBackedMessageQueueServiceTest {
     void updateMessageStatusMarksProcessingWhenRequested() {
         Message message = message();
         message.markPending();
-        when(messageRepository.findById(message.getId())).thenReturn(Optional.of(message));
+        when(messageQueueRepository.findById(message.getId())).thenReturn(Optional.of(message));
 
         ReflectionTestUtils.invokeMethod(
                 queueService,
@@ -149,8 +148,8 @@ class DatabaseBackedMessageQueueServiceTest {
             submittedWorker[0] = invocation.getArgument(0);
             return null;
         }).when(taskExecutor).execute(any(Runnable.class));
-        when(messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
-        when(messageRepository.existsByStatus(MessageStatus.PENDING)).thenReturn(true, false);
+        when(messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
+        when(messageQueueRepository.existsByStatus(MessageStatus.PENDING)).thenReturn(true, false);
 
         queueService.triggerPendingMessageProcessing();
         submittedWorker[0].run();
@@ -162,8 +161,8 @@ class DatabaseBackedMessageQueueServiceTest {
 
     @Test
     void drainPendingMessagesDoesNotRetriggerWhenNoMessagesRemain() {
-        when(messageRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
-        when(messageRepository.existsByStatus(MessageStatus.PENDING)).thenReturn(false);
+        when(messageQueueRepository.claimMessageIdsByStatus(MessageStatus.PENDING.name(), 10)).thenReturn(List.of());
+        when(messageQueueRepository.existsByStatus(MessageStatus.PENDING)).thenReturn(false);
 
         ReflectionTestUtils.setField(queueService, "workerRunning", new AtomicBoolean(true));
 
