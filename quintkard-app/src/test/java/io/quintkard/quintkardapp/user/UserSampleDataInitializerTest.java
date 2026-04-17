@@ -13,6 +13,7 @@ import io.quintkard.quintkardapp.agent.AgentConfig;
 import io.quintkard.quintkardapp.agent.AgentConfigRepository;
 import io.quintkard.quintkardapp.agent.AgentConfigRequest;
 import io.quintkard.quintkardapp.agent.AgentService;
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.message.MessageEnvelope;
 import io.quintkard.quintkardapp.message.MessageIngestionService;
 import io.quintkard.quintkardapp.message.MessageRepository;
@@ -32,6 +33,7 @@ class UserSampleDataInitializerTest {
 
     private AgentConfigRepository agentConfigRepository;
     private AgentService agentService;
+    private AiModelCatalog modelCatalog;
     private MessageIngestionService messageIngestionService;
     private MessageRepository messageRepository;
     private OrchestratorConfigRepository orchestratorConfigRepository;
@@ -43,6 +45,7 @@ class UserSampleDataInitializerTest {
     void setUp() {
         agentConfigRepository = mock(AgentConfigRepository.class);
         agentService = mock(AgentService.class);
+        modelCatalog = new AiModelCatalog();
         messageIngestionService = mock(MessageIngestionService.class);
         messageRepository = mock(MessageRepository.class);
         orchestratorConfigRepository = mock(OrchestratorConfigRepository.class);
@@ -51,6 +54,7 @@ class UserSampleDataInitializerTest {
         initializer = new UserSampleDataInitializer(
                 agentConfigRepository,
                 agentService,
+                modelCatalog,
                 messageIngestionService,
                 messageRepository,
                 orchestratorConfigRepository,
@@ -82,10 +86,14 @@ class UserSampleDataInitializerTest {
         verify(agentService, org.mockito.Mockito.times(2)).createAgent(eq("admin"), agentCaptor.capture());
         assertEquals("task_update_card_agent", agentCaptor.getAllValues().get(0).name());
         assertEquals("acknowledgment_status_agent", agentCaptor.getAllValues().get(1).name());
+        assertEquals(modelCatalog.defaultAgentModel().id(), agentCaptor.getAllValues().get(0).model());
+        assertEquals(modelCatalog.defaultAgentModel().id(), agentCaptor.getAllValues().get(1).model());
 
         ArgumentCaptor<OrchestratorConfigRequest> orchestratorCaptor = ArgumentCaptor.forClass(OrchestratorConfigRequest.class);
         verify(orchestratorService).updateConfig(eq("admin"), orchestratorCaptor.capture());
         assertEquals(Set.of(taskAgent.getId(), ackAgent.getId()), Set.copyOf(orchestratorCaptor.getValue().activeAgentIds()));
+        assertEquals(modelCatalog.defaultFilteringModel().id(), orchestratorCaptor.getValue().filteringModel());
+        assertEquals(modelCatalog.defaultRoutingModel().id(), orchestratorCaptor.getValue().routingModel());
 
         ArgumentCaptor<MessageEnvelope> envelopeCaptor = ArgumentCaptor.forClass(MessageEnvelope.class);
         verify(messageIngestionService).ingestMessage(eq("admin"), envelopeCaptor.capture());

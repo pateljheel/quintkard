@@ -4,6 +4,7 @@ import io.quintkard.quintkardapp.agent.AgentConfig;
 import io.quintkard.quintkardapp.agent.AgentConfigRepository;
 import io.quintkard.quintkardapp.agent.AgentConfigRequest;
 import io.quintkard.quintkardapp.agent.AgentService;
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.message.MessageEnvelope;
 import io.quintkard.quintkardapp.message.MessageIngestionService;
 import io.quintkard.quintkardapp.message.MessageRepository;
@@ -22,8 +23,6 @@ public class UserSampleDataInitializer {
     private static final String TASK_AGENT_NAME = "task_update_card_agent";
     private static final String ACK_AGENT_NAME = "acknowledgment_status_agent";
     private static final String SAMPLE_MESSAGE_EXTERNAL_ID = "sample-bootstrap-message-v1";
-    private static final String FILTERING_MODEL = "gemini-2.5-flash";
-    private static final String ROUTING_MODEL = "gpt-5.4-mini";
 
     private static final String FILTERING_PROMPT = """
             You are the message intake filter for Quintkard.
@@ -151,6 +150,7 @@ public class UserSampleDataInitializer {
 
     private final AgentConfigRepository agentConfigRepository;
     private final AgentService agentService;
+    private final AiModelCatalog modelCatalog;
     private final MessageIngestionService messageIngestionService;
     private final MessageRepository messageRepository;
     private final OrchestratorConfigRepository orchestratorConfigRepository;
@@ -160,6 +160,7 @@ public class UserSampleDataInitializer {
     public UserSampleDataInitializer(
             AgentConfigRepository agentConfigRepository,
             AgentService agentService,
+            AiModelCatalog modelCatalog,
             MessageIngestionService messageIngestionService,
             MessageRepository messageRepository,
             OrchestratorConfigRepository orchestratorConfigRepository,
@@ -168,6 +169,7 @@ public class UserSampleDataInitializer {
     ) {
         this.agentConfigRepository = agentConfigRepository;
         this.agentService = agentService;
+        this.modelCatalog = modelCatalog;
         this.messageIngestionService = messageIngestionService;
         this.messageRepository = messageRepository;
         this.orchestratorConfigRepository = orchestratorConfigRepository;
@@ -189,7 +191,7 @@ public class UserSampleDataInitializer {
                 TASK_AGENT_NAME,
                 "Creates and updates cards for actionable messages and task-oriented updates.",
                 TASK_AGENT_PROMPT,
-                "gemini-2.5-flash",
+                modelCatalog.defaultAgentModel().id(),
                 0.3
         );
         AgentConfig acknowledgmentAgent = ensureAgent(
@@ -197,7 +199,7 @@ public class UserSampleDataInitializer {
                 ACK_AGENT_NAME,
                 "Handles acknowledgments, closures, and lightweight tracked status updates.",
                 ACK_AGENT_PROMPT,
-                "gpt-5.4-mini",
+                modelCatalog.defaultAgentModel().id(),
                 0.2
         );
 
@@ -231,9 +233,9 @@ public class UserSampleDataInitializer {
                 userId,
                 new OrchestratorConfigRequest(
                         FILTERING_PROMPT,
-                        FILTERING_MODEL,
+                        modelCatalog.defaultFilteringModel().id(),
                         ROUTING_PROMPT,
-                        ROUTING_MODEL,
+                        modelCatalog.defaultRoutingModel().id(),
                         List.of(taskAgent.getId(), acknowledgmentAgent.getId())
                 )
         );
