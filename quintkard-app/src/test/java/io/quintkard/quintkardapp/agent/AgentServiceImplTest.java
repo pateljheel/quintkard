@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import io.quintkard.quintkardapp.user.User;
 import io.quintkard.quintkardapp.user.UserRepository;
 import java.util.List;
@@ -32,7 +32,7 @@ class AgentServiceImplTest {
     void setUp() {
         agentConfigRepository = mock(AgentConfigRepository.class);
         userRepository = mock(UserRepository.class);
-        agentService = new AgentServiceImpl(agentConfigRepository, new AgentModelCatalog(), userRepository);
+        agentService = new AgentServiceImpl(agentConfigRepository, new AiModelCatalog(), userRepository);
     }
 
     @Test
@@ -145,7 +145,7 @@ class AgentServiceImplTest {
                 ))
         );
 
-        assertEquals("Unsupported agent model: unknown-model", exception.getMessage());
+        assertEquals("Unsupported AI model: unknown-model", exception.getMessage());
     }
 
     @Test

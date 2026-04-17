@@ -24,13 +24,14 @@ const defaultForm: AgentConfigRequest = {
   name: "",
   description: "",
   prompt: "",
-  model: "gpt-5.4-mini",
+  model: "",
   temperature: 0.7
 };
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentSummaryResponse[]>([]);
   const [models, setModels] = useState<AgentModelConfigResponse[]>([]);
+  const [defaultAgentModelId, setDefaultAgentModelId] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [form, setForm] = useState<AgentConfigRequest>(defaultForm);
   const [loading, setLoading] = useState(false);
@@ -92,15 +93,20 @@ export default function AgentsPage() {
 
       const data: AgentConfigMetadataResponse = await response.json();
       setModels(data.models);
+      setDefaultAgentModelId(data.defaultAgentModelId);
 
-      if (data.models.length > 0) {
+      const defaultModel =
+        data.models.find((model) => model.id === data.defaultAgentModelId) ??
+        data.models[0];
+
+      if (defaultModel) {
         setForm((current) => ({
           ...current,
-          model: current.model || data.models[0].id,
+          model: current.model || defaultModel.id,
           temperature:
-            current.model === data.models[0].id && current.temperature
+            current.model === defaultModel.id && current.temperature
               ? current.temperature
-              : data.models[0].defaultTemperature
+              : defaultModel.defaultTemperature
         }));
       }
     } catch (requestError) {
@@ -142,10 +148,13 @@ export default function AgentsPage() {
 
   function resetForm() {
     setSelectedAgentId("");
+    const defaultModel =
+      models.find((model) => model.id === defaultAgentModelId) ??
+      models[0];
     setForm({
       ...defaultForm,
-      model: models[0]?.id ?? defaultForm.model,
-      temperature: models[0]?.defaultTemperature ?? defaultForm.temperature
+      model: defaultModel?.id ?? defaultForm.model,
+      temperature: defaultModel?.defaultTemperature ?? defaultForm.temperature
     });
     setError("");
     setNotice("");

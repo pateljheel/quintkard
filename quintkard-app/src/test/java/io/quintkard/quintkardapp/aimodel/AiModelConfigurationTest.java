@@ -11,25 +11,19 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class AiModelConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(AiModelConfiguration.class)
-            .withPropertyValues(
-                    "quintkard.ai.models[gemini-2.5-flash].provider=GOOGLE_GENAI",
-                    "quintkard.ai.models[gpt-5.4-mini].provider=OPENAI"
-            );
+            .withUserConfiguration(AiModelConfiguration.class);
 
     @Test
-    void registersSharedMemoryBeansAndBindsModelCatalog() {
+    void registersSharedMemoryBeansAndModelCatalog() {
         contextRunner.run(context -> {
             ChatMemoryRepository chatMemoryRepository = context.getBean(ChatMemoryRepository.class);
             ChatMemory chatMemory = context.getBean(ChatMemory.class);
-            AiModelCatalogProperties catalogProperties = context.getBean(AiModelCatalogProperties.class);
+            AiModelCatalog catalog = context.getBean(AiModelCatalog.class);
 
             assertNotNull(chatMemoryRepository);
             assertNotNull(chatMemory);
-            assertEquals(AiProvider.GOOGLE_GENAI,
-                    catalogProperties.getModels().get("gemini-2.5-flash").provider());
-            assertEquals(AiProvider.OPENAI,
-                    catalogProperties.getModels().get("gpt-5.4-mini").provider());
+            assertEquals(AiProvider.GOOGLE_GENAI, catalog.getModel("gemini-2.5-flash").provider());
+            assertEquals(AiProvider.OPENAI, catalog.getModel("gpt-5.4-mini").provider());
         });
     }
 }

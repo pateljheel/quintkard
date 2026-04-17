@@ -1,6 +1,14 @@
 package io.quintkard.quintkardapp.aimodel;
 
 public record AiModelDefinition(
-        AiProvider provider
+        String id,
+        String label,
+        AiProvider provider,
+        double minTemperature,
+        double maxTemperature,
+        double defaultTemperature,
+        boolean defaultForAgent,
+        boolean defaultForRouting,
+        boolean defaultForFiltering
 ) {
 }

@@ -84,6 +84,9 @@ export type AgentModelConfigResponse = {
 
 export type AgentConfigMetadataResponse = {
   models: AgentModelConfigResponse[];
+  defaultAgentModelId: string;
+  defaultRoutingModelId: string;
+  defaultFilteringModelId: string;
 };
 
 export type OrchestratorConfigRequest = {

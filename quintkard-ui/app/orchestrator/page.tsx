@@ -70,11 +70,17 @@ export default function OrchestratorPage() {
 
       setAgents(agentData);
       setModels(modelData.models);
+      const defaultFilteringModel =
+        modelData.models.find((model) => model.id === modelData.defaultFilteringModelId) ??
+        modelData.models[0];
+      const defaultRoutingModel =
+        modelData.models.find((model) => model.id === modelData.defaultRoutingModelId) ??
+        modelData.models[0];
       setForm({
         filteringPrompt: orchestratorData.filteringPrompt,
-        filteringModel: orchestratorData.filteringModel || modelData.models[0]?.id || "",
+        filteringModel: orchestratorData.filteringModel || defaultFilteringModel?.id || "",
         routingPrompt: orchestratorData.routingPrompt,
-        routingModel: orchestratorData.routingModel || modelData.models[0]?.id || "",
+        routingModel: orchestratorData.routingModel || defaultRoutingModel?.id || "",
         activeAgentIds: orchestratorData.activeAgents.map((agent) => agent.id)
       });
     } catch (requestError) {

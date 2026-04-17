@@ -22,10 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-@EnableConfigurationProperties({
-        AiModelCatalogProperties.class,
-        OpenAiChatConnectionProperties.class
-})
+@EnableConfigurationProperties(OpenAiChatConnectionProperties.class)
 public class AiModelConfiguration {
 
     @Bean
@@ -39,6 +36,11 @@ public class AiModelConfiguration {
                 .chatMemoryRepository(chatMemoryRepository)
                 .maxMessages(100)
                 .build();
+    }
+
+    @Bean
+    AiModelCatalog aiModelCatalog() {
+        return new AiModelCatalog();
     }
 
     @Bean

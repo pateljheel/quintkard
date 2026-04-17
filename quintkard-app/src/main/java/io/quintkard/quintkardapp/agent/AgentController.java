@@ -1,5 +1,6 @@
 package io.quintkard.quintkardapp.agent;
 
+import io.quintkard.quintkardapp.aimodel.AiModelCatalog;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -41,8 +42,21 @@ public class AgentController {
     }
 
     @GetMapping("/config")
-    public AgentConfigMetadataResponse getAgentConfig(AgentModelCatalog agentModelCatalog) {
-        return new AgentConfigMetadataResponse(agentModelCatalog.listModels());
+    public AgentConfigMetadataResponse getAgentConfig(AiModelCatalog modelCatalog) {
+        return new AgentConfigMetadataResponse(
+                modelCatalog.listModels().stream()
+                        .map(model -> new AgentModelConfigResponse(
+                                model.id(),
+                                model.label(),
+                                model.minTemperature(),
+                                model.maxTemperature(),
+                                model.defaultTemperature()
+                        ))
+                        .toList(),
+                modelCatalog.defaultAgentModel().id(),
+                modelCatalog.defaultRoutingModel().id(),
+                modelCatalog.defaultFilteringModel().id()
+        );
     }
 
     @DeleteMapping("/{agentId}")

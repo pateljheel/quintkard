@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
-import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
@@ -14,22 +12,11 @@ import org.springframework.beans.factory.ObjectProvider;
 
 class DefaultAiChatModelRegistryTest {
 
-    private AiModelCatalogProperties properties;
-
-    @BeforeEach
-    void setUp() {
-        properties = new AiModelCatalogProperties();
-        properties.setModels(Map.of(
-                "gemini-2.5-flash", new AiModelDefinition(AiProvider.GOOGLE_GENAI),
-                "gpt-5.4-mini", new AiModelDefinition(AiProvider.OPENAI)
-        ));
-    }
-
     @Test
     void returnsGoogleModelForGoogleCatalogEntry() {
         GoogleGenAiChatModel googleModel = mock(GoogleGenAiChatModel.class);
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 fixedProvider(googleModel),
                 emptyProvider()
         );
@@ -42,7 +29,7 @@ class DefaultAiChatModelRegistryTest {
     void returnsOpenAiModelForOpenAiCatalogEntry() {
         OpenAiChatModel openAiChatModel = mock(OpenAiChatModel.class);
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 emptyProvider(),
                 fixedProvider(openAiChatModel)
         );
@@ -54,13 +41,13 @@ class DefaultAiChatModelRegistryTest {
     @Test
     void rejectsUnsupportedModel() {
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 emptyProvider(),
                 emptyProvider()
         );
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        java.util.NoSuchElementException exception = assertThrows(
+                java.util.NoSuchElementException.class,
                 () -> registry.providerFor("unknown-model")
         );
 
@@ -70,7 +57,7 @@ class DefaultAiChatModelRegistryTest {
     @Test
     void rejectsNullOrBlankModelName() {
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 emptyProvider(),
                 emptyProvider()
         );
@@ -91,7 +78,7 @@ class DefaultAiChatModelRegistryTest {
     @Test
     void rejectsConfiguredGoogleProviderWhenConcreteBeanMissing() {
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 emptyProvider(),
                 emptyProvider()
         );
@@ -110,7 +97,7 @@ class DefaultAiChatModelRegistryTest {
     @Test
     void rejectsConfiguredProviderWhenConcreteBeanMissing() {
         DefaultAiChatModelRegistry registry = new DefaultAiChatModelRegistry(
-                properties,
+                new AiModelCatalog(),
                 emptyProvider(),
                 emptyProvider()
         );
