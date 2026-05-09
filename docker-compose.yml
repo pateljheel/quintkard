@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: quintkard-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: quintkard
+      POSTGRES_USER: quintkard
+      POSTGRES_PASSWORD: quintkard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quintkard -d quintkard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  quintkard-app:
+    build:
+      context: ./quintkard-app
+    container_name: quintkard-app
+    restart: unless-stopped
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quintkard
+      SPRING_DATASOURCE_USERNAME: quintkard
+      SPRING_DATASOURCE_PASSWORD: quintkard
+      SPRING_FLYWAY_ENABLED: "true"
+      QUINTKARD_SECURITY_CORS_ALLOWED_ORIGINS: http://localhost:3000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/application_default_credentials.json
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/var/secrets/google/application_default_credentials.json:ro
+
+  quintkard-ui:
+    build:
+      context: ./quintkard-ui
+    container_name: quintkard-ui
+    restart: unless-stopped
+    depends_on:
+      - quintkard-app
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
