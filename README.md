@@ -191,6 +191,38 @@ npm run dev
 
 The UI runs on `http://localhost:3000`.
 
+## Send a message with curl
+
+Once the backend is running, you can ingest a message directly with `curl` using the seeded `admin` user:
+
+This ingestion endpoint is also the main HTTP entrypoint that can be used by external services or future plugins as a webhook-style integration path.
+It requires authentication, but it does not require a CSRF token.
+
+```bash
+curl -X POST http://localhost:8080/api/messages/ingest \
+  -u admin:admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourceService": "gmail",
+    "externalMessageId": "sample-email-1",
+    "messageType": "EMAIL",
+    "payload": "Follow up on last year'\''s August invoice and confirm the updated account details with the vendor.",
+    "metadata": {
+      "threadId": "thread-123"
+    },
+    "details": {
+      "from": "finance@example.com"
+    },
+    "sourceCreatedAt": "2026-05-09T13:30:00Z"
+  }'
+```
+
+You can also ingest a batch through:
+
+```bash
+POST /api/messages/ingest/batch
+```
+
 ## Test and coverage
 
 Backend tests:

@@ -19,9 +19,15 @@ import io.quintkard.quintkardapp.card.CardRequest;
 import io.quintkard.quintkardapp.card.CardService;
 import io.quintkard.quintkardapp.card.CardStatus;
 import io.quintkard.quintkardapp.card.CardType;
+import io.quintkard.quintkardapp.message.Message;
+import io.quintkard.quintkardapp.message.MessageEnvelope;
+import io.quintkard.quintkardapp.message.MessageIngestionController;
+import io.quintkard.quintkardapp.message.MessageIngestionService;
+import io.quintkard.quintkardapp.message.MessageStatus;
 import io.quintkard.quintkardapp.user.User;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +41,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-@WebMvcTest(controllers = {CardController.class, CsrfController.class})
+@WebMvcTest(controllers = {CardController.class, CsrfController.class, MessageIngestionController.class})
 @Import(SecurityConfig.class)
 class CsrfSecurityTest {
 
@@ -51,6 +57,9 @@ class CsrfSecurityTest {
 
     @MockitoBean
     private CardService cardService;
+
+    @MockitoBean
+    private MessageIngestionService messageIngestionService;
 
     @MockitoBean
     private SecurityCorsProperties securityCorsProperties;
@@ -113,6 +122,23 @@ class CsrfSecurityTest {
         verify(cardService).createCard(eq("admin"), any(CardRequest.class));
     }
 
+    @Test
+    void messageIngestionEndpointIsAcceptedWithoutCsrfToken() throws Exception {
+        when(securityCorsProperties.getAllowedOrigins()).thenReturn(java.util.List.of("http://localhost:3000"));
+        when(messageIngestionService.ingestMessage(eq("admin"), any(MessageEnvelope.class))).thenReturn(message());
+
+        mockMvc.perform(post("/api/messages/ingest")
+                        .with(user("admin"))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(messageRequestJson()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value("admin"))
+                .andExpect(jsonPath("$.sourceService").value("gmail"))
+                .andExpect(jsonPath("$.messageType").value("EMAIL"));
+
+        verify(messageIngestionService).ingestMessage(eq("admin"), any(MessageEnvelope.class));
+    }
+
     private static String cardRequestJson() {
         return """
                 {
@@ -143,5 +169,37 @@ class CsrfSecurityTest {
         ReflectionTestUtils.setField(card, "createdAt", Instant.parse("2026-04-05T00:00:00Z"));
         ReflectionTestUtils.setField(card, "updatedAt", Instant.parse("2026-04-05T01:00:00Z"));
         return card;
+    }
+
+    private static String messageRequestJson() {
+        return """
+                {
+                  "sourceService": "gmail",
+                  "externalMessageId": "ext-1",
+                  "messageType": "EMAIL",
+                  "payload": "Follow up on invoice",
+                  "metadata": {"threadId": "t-1"},
+                  "details": {"priority": "high"},
+                  "sourceCreatedAt": "2026-04-05T11:55:00Z"
+                }
+                """;
+    }
+
+    private static Message message() {
+        Message message = new Message(
+                new User("admin", "Admin", "admin@example.com", "hash", false),
+                "gmail",
+                "ext-1",
+                "EMAIL",
+                MessageStatus.PENDING,
+                "Follow up on invoice",
+                "Summary",
+                Map.of("threadId", "t-1"),
+                Map.of("priority", "high"),
+                Instant.parse("2026-04-05T12:00:00Z"),
+                Instant.parse("2026-04-05T11:55:00Z")
+        );
+        ReflectionTestUtils.setField(message, "id", UUID.randomUUID());
+        return message;
     }
 }
