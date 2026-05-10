@@ -55,10 +55,11 @@ The system is designed around user-level multi-tenancy: cards, messages, agents,
 
 ## Local prerequisites
 
-- Java 21
-- Node.js
-- PostgreSQL with a `quintkard` database
-- Google Cloud auth for Gemini access
+- Docker and Docker Compose
+- Gemini access configured through either:
+  - Google Cloud Application Default Credentials for Vertex AI
+  - `GOOGLE_API_KEY` for Gemini Developer API / AI Studio
+- Java 21, Node.js, and a local PostgreSQL instance are only needed if you choose the manual non-Docker setup
 
 Default backend local DB settings are currently:
 
@@ -87,6 +88,19 @@ gcloud auth application-default login
 ```
 
 You should also make sure the configured Google Cloud project has Vertex AI access enabled.
+
+If you use the root Docker Compose setup, the backend container mounts the host ADC file from:
+
+```bash
+~/.config/gcloud/application_default_credentials.json
+```
+
+For local Docker Compose, export your host UID/GID before starting so the container can read that mounted file:
+
+```bash
+export LOCAL_UID=$(id -u)
+export LOCAL_GID=$(id -g)
+```
 
 ### Option 2: Gemini Developer API / AI Studio key
 
@@ -118,23 +132,47 @@ OpenAI is currently used for chat only. Embeddings should remain pinned to a sin
 
 ## Run locally
 
-### Local services
+### Option 1: Full stack with Docker Compose
 
-Start PostgreSQL with the provided Docker Compose file:
+Prerequisite:
+
+```bash
+Either:
+- authenticate with Google Cloud ADC using `gcloud auth application-default login`
+
+Or:
+- export `GOOGLE_API_KEY`
+```
+
+If using ADC, also export your host UID/GID so the backend container can read the mounted credentials file:
+
+```bash
+export LOCAL_UID=$(id -u)
+export LOCAL_GID=$(id -g)
+```
+
+Start the full stack from the repo root:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- PostgreSQL with pgvector on `localhost:5432`
+- backend API on `http://localhost:8080`
+- frontend UI on `http://localhost:3000`
+
+### Option 2: Run services manually
+
+Start PostgreSQL with the local Compose file:
 
 ```bash
 cd local
 docker compose up -d
 ```
 
-This starts:
-
-- PostgreSQL with pgvector on `localhost:5432`
-- database `quintkard`
-- username `quintkard`
-- password `quintkard`
-
-### Backend
+Then run the backend:
 
 ```bash
 cd quintkard-app
@@ -143,7 +181,7 @@ cd quintkard-app
 
 The API runs on `http://localhost:8080`.
 
-### Frontend
+Then run the frontend:
 
 ```bash
 cd quintkard-ui
